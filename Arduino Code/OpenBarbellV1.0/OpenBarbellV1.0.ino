@@ -111,8 +111,15 @@ int buttonStateRight = 0; // variable for reading the pushbutton status
 int buttonStateLeft = 0; // variable for reading the pushbutton status
 int buttonstateRtemp = 0;
 int buttonstateLtemp = 0;
+int rightHold = 0;
+int leftHold = 0;
+int rightHoldActionTime = 1500;
+int leftHoldActionTime = 1500;
+int bothHoldActionTime = 5000;
 int replast = 0;
 boolean backlightFlag = 1;
+boolean RbuttonDepressed = 0;
+boolean LbuttonDepressed = 0;
 float testVelocity[repArrayCount] = {0};
 float peakVelocity[repArrayCount] = {0};
 float dispArray[repArrayCount] = {0};
@@ -218,7 +225,7 @@ void setup() {
 	display.setTextSize(2);
 	display.setTextColor(WHITE);
 	display.setCursor(0,15);
-	display.println("Begin Set!");\
+	display.println("Begin Set!");
 	
 	checkBatteryandDisplay();
 	display.display();
@@ -272,7 +279,7 @@ void initializeBluetooth(){
 
 
 
-// ********** Function to generate message to be sent over Bluetooth ********** \\
+// ********** Function to generate test message to be sent over Bluetooth ********** \\
 
 void send_random_int_msg(int n) {   ///  this function can be removed any time - randomly generates a test message
   int intList[n];
@@ -281,6 +288,37 @@ void send_random_int_msg(int n) {   ///  this function can be removed any time -
     intList[i] = randNumber;
   }
   send_intList_charString(intList, n);  // transmit a single message with integers delimited by commas
+}
+
+// ********************************************************************************* \\
+
+
+
+
+
+
+// ********** Function that turns of Bluetooth if requested by phone ********** \\
+
+void RFduinoBLE_onReceive(char *data, int len)
+{
+// if the first byte is 0x01 / on / true
+	if (data[0]){
+		Serial.println("new message received: " + charToString(data, len));  // buffer reused, so need to check length
+		String msg3 = charToString(data, min(len,3));
+		if (msg3.equalsIgnoreCase("bluetooth off")) {
+			bluetoothOn = false;
+			bluetoothStartNextLoop= false;
+			Serial.println("bluetooth terminated");
+			RFduinoBLE.end();
+		}else {}
+	}else
+}
+
+String charToString(char *text, int len)
+{
+ String s = "";
+ for (int i =0; i < len; i++) s += text[i];
+ return s;
 }
 
 // **************************************************************************** \\
@@ -292,19 +330,19 @@ void send_random_int_msg(int n) {   ///  this function can be removed any time -
 // ********** Function to send message over Bluetooth ********** \\
 
 void send_intList_charString(int *intList, int len) {
-  Serial.print("send char string: " );
+  //Serial.print("send char string: " );
   String intString = "";
   for (int i=0; i < len; i++) {
     if (i > 0) intString += ",";
     intString += String(intList[i]);
-    Serial.print(String(intList[i]) + " ");
+    //Serial.print(String(intList[i]) + " ");
   }  
-  Serial.println(" ");
+  //Serial.println(" ");
   int nbytes = intString.length()+1;
   char bytes[nbytes];
   intString.toCharArray(bytes, nbytes);
-  Serial.print("length = " + String(nbytes) + " : ");
-  Serial.println(String(bytes));
+  //Serial.print("length = " + String(nbytes) + " : ");
+  //Serial.println(String(bytes));
   RFduinoBLE.send(bytes, nbytes);
 } // END send_intList_charString
 
@@ -446,32 +484,71 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		backlightFlag = 0; // might not be necessary anymore -- Nate
 	}
   
+	//update rep to be displayed to the screen if you recorded a new rep
 	if (repDone != repDoneLast){
 		repDisplay = repDone; 
 		repDoneLast = repDone;
 		display.ssd1306_command(SSD1306_DISPLAYON);
 	}
   
-	if (!buttonstateRtemp && buttonstateR){
+	//register a button press on the release of the right button
+	if (buttonstateRtemp && !buttonstateR){
 		if ((backlightFlag)&&(repDisplay < (repDone + 2))){
 			repDisplay += 1;
 		}else {
 			display.ssd1306_command(SSD1306_DISPLAYON); 
 		backlightFlag = 1;
+		rightHold = 0;
+		RbuttonDepressed = 0;
 		displayTime = micros();
 		}
 	}
-	
-	if ((!buttonstateLtemp && buttonstateL) && (repDisplay > 1)){
-		if ((backlightFlag)&&(repDisplay < (repDone + 2))){
+	//register a button press on the release of the left button	
+	if (buttonstateLtemp && !buttonstateL){
+		if ((backlightFlag)&&(repDisplay > 1)){
 			repDisplay -= 1;
 		} else {
 			display.ssd1306_command(SSD1306_DISPLAYON);  
 			backlightFlag = 1;
+			leftHold = 0;
+			LbuttonDepressed = 0;
 			displayTime = micros();
 		}
 	}
-  
+	
+	//set a flag if you just pressed the right button, and look at when that happened
+	if (!buttonstateRtemp && buttonstateR){
+		rightHold = millis();
+		RbuttonDepressed = 1;
+	}
+
+	//set a flag if you just pressed the left button, and look at when that happened	
+	if (!buttonstateLtemp && buttonstateL){
+		leftHold = millis();
+		LbuttonDepressed = 1;
+	}
+	
+	//if both buttons are depressed, enable bluetooth if over 5 seconds
+	if (LbuttonDepressed && RbuttonDepressed){
+		if (((millis() - rightHold) > bothHoldActionTime)&&((millis() - leftHold) > bothHoldActionTime)){
+			if (!bluetoothOn && !bluetoothStartNextLoop){
+				bluetoothStartNextLoop = true;
+				display.setTextSize(1);
+				display.setCursor(64,0);
+				display.print("BT ON");
+				display.display();
+			}
+		}
+	}
+	/* Button and string combination code. Not finished - does not work. Might need to separate Rbutton and Lbutton, as millis() - XHold for the non-depressed button will almost always be greater than the action times
+	if (RbuttonDepressed ^ LbuttonDepressed){
+		if (((millis() - rightHold) > rightHoldActionTime)||((millis() - leftHold) > leftHoldActionTime)){
+			if ((repDisplay < (repDone + 1))&&(repDisplay > 0)){
+				repDisplay += (int)instvel;
+			}
+		}
+	}
+  */
 	if (repDisplay != repDisplayLast){
   
 		// if the displayed rep changes, keep the time so we know when to dim the backlight
@@ -553,9 +630,9 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 			display.setCursor(0,0);
 			display.print("Rep#:");
 			display.print(repDisplay);
-			display.setTextSize(2);
-			display.setTextColor(WHITE);
-			display.setCursor(0,40);
+			//display.setTextSize(2);
+			//display.setTextColor(WHITE);
+			//display.setCursor(0,40);
 			//display.print("-");
 			//display.print(total_displacement/1000);
 			//display.print("-");
