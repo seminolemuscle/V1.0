@@ -45,7 +45,7 @@ float CODE_VERSION = 1.02;
 
 boolean bluetoothOn = false;  // Elliot addition
 boolean bluetoothStartNextLoop = false; // Elliot addition
-int repPerformance[] = {100,200,300,400};  // Elliot addition
+float repPerformance[] = {100.0,200.0,300.0,400.0};  // Elliot addition
 long loopCount = 0; // Elliot addition
 int looploopCount = 0; // Elliot addition
 
@@ -111,8 +111,8 @@ int buttonStateRight = 0; // variable for reading the pushbutton status
 int buttonStateLeft = 0; // variable for reading the pushbutton status
 int buttonstateRtemp = 0;
 int buttonstateLtemp = 0;
-int rightHold = 0;
-int leftHold = 0;
+unsigned long rightHold = 0;
+unsigned long leftHold = 0;
 int rightHoldActionTime = 1500;
 int leftHoldActionTime = 1500;
 int bothHoldActionTime = 5000;
@@ -229,7 +229,9 @@ void setup() {
 	
 	checkBatteryandDisplay();
 	display.display();
-
+	initializeBluetooth();
+	RFduinoBLE.deviceName = "OpenBarbell";
+	RFduinoBLE.advertisementData = "OpenBarbell";
 }
 
 // ******************************************************************** \\
@@ -243,7 +245,7 @@ void setup() {
 void loop() {
 	
 	//Elliot addition
-	initializeBluetooth();
+	//initializeBluetooth();
 	
 	goingUpward = !digitalRead(pin_encoder_dir);
 
@@ -265,11 +267,11 @@ void loop() {
 // ********** Function to initialize Bluetooth if given the command by user ********** \\
 
 void initializeBluetooth(){
-	if (!bluetoothOn && bluetoothStartNextLoop) {
+	//if (!bluetoothOn && bluetoothStartNextLoop) {
 		bluetoothOn = true;
 		RFduinoBLE.begin();
 		RFduino_ULPDelay(0);
-	}
+	//}
 }
 
 // *********************************************************************************** \\
@@ -279,39 +281,21 @@ void initializeBluetooth(){
 
 
 
-// ********** Function to generate test message to be sent over Bluetooth ********** \\
-
-void send_random_int_msg(int n) {   ///  this function can be removed any time - randomly generates a test message
-  int intList[n];
-  for (int i=0; i < n; i++) {
-    int randNumber = random(30000)-15000;
-    intList[i] = randNumber;
-  }
-  send_intList_charString(intList, n);  // transmit a single message with integers delimited by commas
-}
-
-// ********************************************************************************* \\
-
-
-
-
-
-
-// ********** Function that turns of Bluetooth if requested by phone ********** \\
+// ********** Function that turns off Bluetooth if requested by phone ********** \\
 
 void RFduinoBLE_onReceive(char *data, int len)
 {
 // if the first byte is 0x01 / on / true
 	if (data[0]){
 		Serial.println("new message received: " + charToString(data, len));  // buffer reused, so need to check length
-		String msg3 = charToString(data, min(len,3));
+		String msg3 = charToString(data, min(len,13));
 		if (msg3.equalsIgnoreCase("bluetooth off")) {
 			bluetoothOn = false;
 			bluetoothStartNextLoop= false;
 			Serial.println("bluetooth terminated");
 			RFduinoBLE.end();
-		}else {}
-	}else
+		}
+	}
 }
 
 String charToString(char *text, int len)
@@ -329,21 +313,28 @@ String charToString(char *text, int len)
 
 // ********** Function to send message over Bluetooth ********** \\
 
-void send_intList_charString(int *intList, int len) {
+void send_intList_charString(float *intList) {
   //Serial.print("send char string: " );
-  String intString = "";
-  for (int i=0; i < len; i++) {
-    if (i > 0) intString += ",";
-    intString += String(intList[i]);
-    //Serial.print(String(intList[i]) + " ");
-  }  
+  //String intString = "";
+  //for (int i=0; i < len; i++) {
+  //  if (i > 0) intString += ",";
+  //  intString += String(intList[i]);
+  //  //Serial.print(String(intList[i]) + " ");
+  //}  
   //Serial.println(" ");
-  int nbytes = intString.length()+1;
-  char bytes[nbytes];
-  intString.toCharArray(bytes, nbytes);
+  //int nbytes = intString.length()+1;
+  //char bytes[nbytes];
+  //intString.toCharArray(bytes, nbytes);
+  RFduinoBLE.sendFloat(intList[0]);
+  RFduino_ULPDelay(1);
+  RFduinoBLE.sendFloat(intList[1]);
+  RFduino_ULPDelay(1);
+  RFduinoBLE.sendFloat(intList[2]);
+  RFduino_ULPDelay(1);
+  RFduinoBLE.sendFloat(intList[3]);
   //Serial.print("length = " + String(nbytes) + " : ");
   //Serial.println(String(bytes));
-  RFduinoBLE.send(bytes, nbytes);
+  //RFduinoBLE.send(bytes, nbytes);
 } // END send_intList_charString
 
 // ************************************************************************** \\
@@ -446,11 +437,11 @@ void calcRep(int isGoingUpward, int currentState){
 					
 					//bluetooth broadcast Elliot addition
 					if (bluetoothOn) {
-						repPerformance[0] = rep;
-						repPerformance[1] = i;
-						repPerformance[2] = (int)avgVelocity; 
-						repPerformance[3] = (int)total_time; 
-						send_intList_charString(repPerformance, 4); 
+						repPerformance[0] = (float)rep;
+						repPerformance[1] = (float)i;
+						repPerformance[2] = (float)avgVelocity; 
+						repPerformance[3] = (float)repArray[rep]; 
+						send_intList_charString(repPerformance); 
 					}
 					
 				} else { 
@@ -501,6 +492,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		rightHold = 0;
 		RbuttonDepressed = 0;
 		displayTime = micros();
+		bluetoothStartNextLoop = true;
 		}
 	}
 	//register a button press on the release of the left button	
@@ -533,6 +525,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		if (((millis() - rightHold) > bothHoldActionTime)&&((millis() - leftHold) > bothHoldActionTime)){
 			if (!bluetoothOn && !bluetoothStartNextLoop){
 				bluetoothStartNextLoop = true;
+				//rightHold = 
 				display.setTextSize(1);
 				display.setCursor(64,0);
 				display.print("BT ON");
