@@ -337,7 +337,7 @@ void send_intList(int *intList, int len) {
 void send_floatList(float *floatList, int len) {
   for (int i=0; i < len; i++) {
     RFduinoBLE.sendFloat(floatList[i]);
-    RFduino_ULPDelay(1);
+    RFduino_ULPDelay(1); 
   }
 } // END send_floatList
 
