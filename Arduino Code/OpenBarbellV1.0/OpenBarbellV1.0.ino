@@ -45,12 +45,8 @@ float CODE_VERSION = 1.02;
 
 boolean bluetoothOn = false;  // Elliot addition
 boolean bluetoothStartNextLoop = false; // Elliot addition
-<<<<<<< HEAD
 float repPerformance[] = {0.0, 1.0,2.0,3.0,4.0,5.0};  // Elliot addition
 int repPerformanceI[] = {0,1,2,3,4,5};  // Elliot addition
-=======
-float repPerformance[] = {100.0,200.0,300.0,400.0};  // Elliot addition
->>>>>>> Experimental-BT
 long loopCount = 0; // Elliot addition
 int looploopCount = 0; // Elliot addition
 
@@ -196,7 +192,6 @@ void setup() {
     Serial.begin(9600);
     Serial.println("starting my task ...");
     randomSeed(analogRead(0));  // can be removed at any time since its only for generating random test message
-<<<<<<< HEAD
   */
   
   fuelGauge.reset();
@@ -238,49 +233,6 @@ void setup() {
   initializeBluetooth();
   RFduinoBLE.deviceName = "OpenBarbell";
   RFduinoBLE.advertisementData = "OpenBarbell";
-=======
-	*/
-	
-	fuelGauge.reset();
-	fuelGauge.quickStart();
-	fuelGauge.showConfig();
-
-	//Welcome Screen
-	display.clearDisplay();
-	display.setTextSize(3);
-	display.setTextColor(WHITE);
-	display.setCursor(0,0);
-	display.println("Open");
-	display.setCursor(0,25);
-	display.println("Barbell");
-	display.setTextSize(1);
-	display.setCursor(0,50);
-	display.print("Rev: ");
-	display.print(CODE_VERSION);
-	display.display();
-	
-
-	delay(1500);
-
-	charge = fuelGauge.stateOfCharge();
-	if(charge>100){
-		charge=100;
-	} else if (charge<=0){
-		charge=1;
-	}
-	
-	display.clearDisplay();
-	display.setTextSize(2);
-	display.setTextColor(WHITE);
-	display.setCursor(0,15);
-	display.println("Begin Set!");
-	
-	checkBatteryandDisplay();
-	display.display();
-	initializeBluetooth();
-	RFduinoBLE.deviceName = "OpenBarbell";
-	RFduinoBLE.advertisementData = "OpenBarbell";
->>>>>>> Experimental-BT
 }
 
 // ******************************************************************** \\
@@ -292,19 +244,11 @@ void setup() {
 // ********** Primary loop. This loop should only run function calls or poll pins. ********** \\
 
 void loop() {
-<<<<<<< HEAD
   
   //Elliot addition
   //initializeBluetooth();
   
   goingUpward = !digitalRead(pin_encoder_dir);
-=======
-	
-	//Elliot addition
-	//initializeBluetooth();
-	
-	goingUpward = !digitalRead(pin_encoder_dir);
->>>>>>> Experimental-BT
 
   buttonStateLeft = digitalRead(pin_buttonLeft);
   buttonStateRight = digitalRead(pin_buttonRight);
@@ -324,19 +268,11 @@ void loop() {
 // ********** Function to initialize Bluetooth if given the command by user ********** \\
 
 void initializeBluetooth(){
-<<<<<<< HEAD
   //if (!bluetoothOn && bluetoothStartNextLoop) {
     bluetoothOn = true;
     RFduinoBLE.begin();
     RFduino_ULPDelay(0);
   //}
-=======
-	//if (!bluetoothOn && bluetoothStartNextLoop) {
-		bluetoothOn = true;
-		RFduinoBLE.begin();
-		RFduino_ULPDelay(0);
-	//}
->>>>>>> Experimental-BT
 }
 
 // *********************************************************************************** \\
@@ -351,7 +287,6 @@ void initializeBluetooth(){
 void RFduinoBLE_onReceive(char *data, int len)
 {
 // if the first byte is 0x01 / on / true
-<<<<<<< HEAD
   if (data[0]){
     Serial.println("new message received: " + charToString(data, len));  // buffer reused, so need to check length
     String msg3 = charToString(data, min(len,13));
@@ -362,18 +297,6 @@ void RFduinoBLE_onReceive(char *data, int len)
       RFduinoBLE.end();
     }
   }
-=======
-	if (data[0]){
-		Serial.println("new message received: " + charToString(data, len));  // buffer reused, so need to check length
-		String msg3 = charToString(data, min(len,13));
-		if (msg3.equalsIgnoreCase("bluetooth off")) {
-			bluetoothOn = false;
-			bluetoothStartNextLoop= false;
-			Serial.println("bluetooth terminated");
-			RFduinoBLE.end();
-		}
-	}
->>>>>>> Experimental-BT
 }
 
 String charToString(char *text, int len)
@@ -391,7 +314,6 @@ String charToString(char *text, int len)
 
 // ********** Function to send message over Bluetooth ********** \\
 
-<<<<<<< HEAD
 void send_intList_charString(int *intList, int len) {
   String intString = "";
   for (int i=0; i < len; i++) {
@@ -403,30 +325,6 @@ void send_intList_charString(int *intList, int len) {
   intString.toCharArray(bytes, nbytes);
   RFduinoBLE.send(bytes, nbytes);
   RFduino_ULPDelay(5);  
-=======
-void send_intList_charString(float *intList) {
-  //Serial.print("send char string: " );
-  //String intString = "";
-  //for (int i=0; i < len; i++) {
-  //  if (i > 0) intString += ",";
-  //  intString += String(intList[i]);
-  //  //Serial.print(String(intList[i]) + " ");
-  //}  
-  //Serial.println(" ");
-  //int nbytes = intString.length()+1;
-  //char bytes[nbytes];
-  //intString.toCharArray(bytes, nbytes);
-  RFduinoBLE.sendFloat(intList[0]);
-  RFduino_ULPDelay(1);
-  RFduinoBLE.sendFloat(intList[1]);
-  RFduino_ULPDelay(1);
-  RFduinoBLE.sendFloat(intList[2]);
-  RFduino_ULPDelay(1);
-  RFduinoBLE.sendFloat(intList[3]);
-  //Serial.print("length = " + String(nbytes) + " : ");
-  //Serial.println(String(bytes));
-  //RFduinoBLE.send(bytes, nbytes);
->>>>>>> Experimental-BT
 } // END send_intList_charString
 
 void send_intList(int *intList, int len) {
@@ -439,7 +337,7 @@ void send_intList(int *intList, int len) {
 void send_floatList(float *floatList, int len) {
   for (int i=0; i < len; i++) {
     RFduinoBLE.sendFloat(floatList[i]);
-    RFduino_ULPDelay(1); 
+    RFduino_ULPDelay(1);
   }
 } // END send_floatList
 
@@ -479,7 +377,6 @@ void checkBatteryandDisplay(){
 // ********** Function that deals with incoming tics. It puts them in different categories based on certain criteria. ********** \\
 
 void calcRep(int isGoingUpward, int currentState){
-<<<<<<< HEAD
   if (currentState != currentStateTemp) { //First thing we do is make sure that you are not accessing the function unless the state has changed since the last iteration
     long denom = 0; 
     //Since you just found a rising edge, take down the time
@@ -575,90 +472,6 @@ void calcRep(int isGoingUpward, int currentState){
     //Serial.println(instvel);
     currentStateTemp = currentState;
   }
-=======
-	if (currentState != currentStateTemp) {	//First thing we do is make sure that you are not accessing the function unless the state has changed since the last iteration
-		long denom = 0;	
-		//Since you just found a rising edge, take down the time
-		tic_time = micros();
-		//increment or decrement the distance by one tic length, depending on direction
-		if (isGoingUpward){
-			displacement += ticLength;
-			counter_lengthbyticinfunction++;
-			tic_timestampLast2 = tic_timestampLast;
-			tic_timestampLast = tic_timestamp;
-			tic_timestamp = micros();
-			//keeping instantaneous velocities for our peak velocity reading
-			//instVelTimestamps[counter_lengthbyticinfunction] = (unsigned int)(tic_timestamp-tic_timestamp_last);
-			if((tic_timestamp - tic_timestamp_last) < minDT){
-				minDT = tic_timestamp - tic_timestamp_last;
-			}
-			tic_timestamp_last = tic_timestamp;
-			// If you're going upward but you were just going downward, clear your array so you can start a fresh rep
-			if (!isGoingUpwardLast){
-				memset(myVelocities,0,sizeof(myVelocities));
-				//memset(instVelTimestamps,0,sizeof(instVelTimestamps));
-				startheight = displacement;
-				counter_lengthbyticinfunction=0;
-				counter_simplelengthbytic=0;
-				starttime = tic_timestamp;
-				rep += 1;
-				sumVelocities = 0;
-				lastDisplacement = startheight;
-				tic_time2 = 0;
-				minDT = 1000000;
-				i = 0;
-			}
-			// This records a value every 20ms
-			if (tic_time - tic_time2 > 20000){
-				denom = (long)(tic_time - tic_time2);
-				//displacement is in micrometers, denom is in microseconds, so instvel is in m/s.
-				instvel = ((displacement - lastDisplacement)*1000)/denom;
-				myVelocities[i] = (int)instvel;
-				tic_time2 = tic_time;
-				lastDisplacement = displacement;
-				i += 1;
-			} 
-		} else {
-		  // If you're going downward, and you were just going upward, you potentially just finished a rep. 
-		  // Do your math, check if it fits the rep criteria, and store it in an array.
-			if (isGoingUpwardLast && rep<=repArrayCount){
-				if ((displacement - startheight) > 150000){	//JDL TEST - REMOVED 0
-					
-					for (int count = 0; count <= i; count++){
-						sumVelocities = sumVelocities + (long)myVelocities[count];
-					}
-					
-					avgVelocity = sumVelocities/(long)i;
-					total_displacement = displacement - startheight;
-					total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2);
-					dispArray[rep] = (float)total_displacement/1000;
-					timeArray[rep] = (float)total_time/1000000;
-					testVelocity[rep] = (float)((total_displacement)*1000/((long)(total_time)))/1000;
-					peakVelocity[rep] = (float)(ticLength*1000/((long)(minDT)))/1000;
-					repArray[rep] = (float)avgVelocity/1000;
-					repDone = rep;
-					
-					//bluetooth broadcast Elliot addition
-					if (bluetoothOn) {
-						repPerformance[0] = (float)rep;
-						repPerformance[1] = (float)i;
-						repPerformance[2] = (float)avgVelocity; 
-						repPerformance[3] = (float)repArray[rep]; 
-						send_intList_charString(repPerformance); 
-					}
-					
-				} else { 
-					rep -= 1;
-				}
-			}
-		  displacement -= ticLength;
-		}
-		  
-		isGoingUpwardLast = isGoingUpward;
-		//Serial.println(instvel);
-		currentStateTemp = currentState;
-	}
->>>>>>> Experimental-BT
 }
 
 // ***************************************************************************************************************************** \\
@@ -724,7 +537,6 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
     LbuttonDepressed = 1;
   }
   
-<<<<<<< HEAD
   //if both buttons are depressed, enable bluetooth if over 5 seconds
   if (LbuttonDepressed && RbuttonDepressed){
     if (((millis() - rightHold) > bothHoldActionTime)&&((millis() - leftHold) > bothHoldActionTime)){
@@ -746,67 +558,6 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       }
     }
   }
-=======
-	//register a button press on the release of the right button
-	if (buttonstateRtemp && !buttonstateR){
-		if ((backlightFlag)&&(repDisplay < (repDone + 2))){
-			repDisplay += 1;
-		}else {
-			display.ssd1306_command(SSD1306_DISPLAYON); 
-		backlightFlag = 1;
-		rightHold = 0;
-		RbuttonDepressed = 0;
-		displayTime = micros();
-		bluetoothStartNextLoop = true;
-		}
-	}
-	//register a button press on the release of the left button	
-	if (buttonstateLtemp && !buttonstateL){
-		if ((backlightFlag)&&(repDisplay > 1)){
-			repDisplay -= 1;
-		} else {
-			display.ssd1306_command(SSD1306_DISPLAYON);  
-			backlightFlag = 1;
-			leftHold = 0;
-			LbuttonDepressed = 0;
-			displayTime = micros();
-		}
-	}
-	
-	//set a flag if you just pressed the right button, and look at when that happened
-	if (!buttonstateRtemp && buttonstateR){
-		rightHold = millis();
-		RbuttonDepressed = 1;
-	}
-
-	//set a flag if you just pressed the left button, and look at when that happened	
-	if (!buttonstateLtemp && buttonstateL){
-		leftHold = millis();
-		LbuttonDepressed = 1;
-	}
-	
-	//if both buttons are depressed, enable bluetooth if over 5 seconds
-	if (LbuttonDepressed && RbuttonDepressed){
-		if (((millis() - rightHold) > bothHoldActionTime)&&((millis() - leftHold) > bothHoldActionTime)){
-			if (!bluetoothOn && !bluetoothStartNextLoop){
-				bluetoothStartNextLoop = true;
-				//rightHold = 
-				display.setTextSize(1);
-				display.setCursor(64,0);
-				display.print("BT ON");
-				display.display();
-			}
-		}
-	}
-	/* Button and string combination code. Not finished - does not work. Might need to separate Rbutton and Lbutton, as millis() - XHold for the non-depressed button will almost always be greater than the action times
-	if (RbuttonDepressed ^ LbuttonDepressed){
-		if (((millis() - rightHold) > rightHoldActionTime)||((millis() - leftHold) > leftHoldActionTime)){
-			if ((repDisplay < (repDone + 1))&&(repDisplay > 0)){
-				repDisplay += (int)instvel;
-			}
-		}
-	}
->>>>>>> Experimental-BT
   */
   if (repDisplay != repDisplayLast){
   
