@@ -102,7 +102,10 @@ unsigned long total_time = 0;
 unsigned long tic_time2 = 0;
 unsigned long displayTime = 0;
 unsigned long batteryTime = 0;
-const unsigned long backlightTime = 10000000;
+unsigned long minTimer = 0;
+unsigned long minTimer2 = 0;
+unsigned long oneMinute = 60000;
+const unsigned long backlightTime = 10000;
 int i = 0;
 int myVelocities[500] = {0};
 int initialized = 0;
@@ -116,7 +119,7 @@ unsigned long rightHold = 0;
 unsigned long leftHold = 0;
 int rightHoldActionTime = 1500;
 int leftHoldActionTime = 1500;
-int bothHoldActionTime = 5000;
+int bothHoldActionTime = 3000;
 int replast = 0;
 boolean backlightFlag = 1;
 boolean RbuttonDepressed = 0;
@@ -136,6 +139,8 @@ static unsigned long last_tic_time = 0;
 long instvel = 0;
 int flipLED = 0;
 int charge = 50;
+int restTime = 0;
+float startMessage[1] = {1234.0};
 int battUpdates = 0;
 //LiquidCrystal_I2C lcd(0x27,20,4); //Addr: 0x3F, 20 chars & 4 lines    Nate comment
 const int threshold_buttonhold=100; //cycles of buttonholdtimer to cross threshold
@@ -145,6 +150,8 @@ int counter_buttonLefthold=0;
 bool buttonRightLongPress=0;
 bool buttonLeftLongPress=0;
 bool bothbuttonlong=0;
+bool isFlipped = false;
+bool accomplishedDoubleHold = false;
   
 int counter_simplelengthbytic=0;
 int counter_lengthbyticinfunction=0;
@@ -174,6 +181,9 @@ MAX1704 fuelGauge;
 // ********** Primary setup. Only to be run once on startup. ********** \\
 
 void setup() {  
+  RFduinoBLE.deviceName = "OpenBarbell";
+  RFduinoBLE.advertisementData = "OBBT";
+  initializeBluetooth();
   Wire.begin();
   delay(200); //display needs about 100ms to initialize the IC
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // initialize with the I2C addr 0x3C (for the 128x64)  //Nate addition
@@ -185,7 +195,6 @@ void setup() {
   pinMode(pin_encoder_dir, INPUT); 
 
   digitalWrite(pin_led,HIGH);
-
   RFduino_pinWakeCallback(pin_encoder_tach, HIGH, encoderState);
 
   /* Elliots test messages for Bluetooth
@@ -212,27 +221,26 @@ void setup() {
   display.print(CODE_VERSION);
   display.display();
   
+  RFduino_ULPDelay(SECONDS(2));
 
-  delay(1500);
-
-  charge = fuelGauge.stateOfCharge();
-  if(charge>100){
-    charge=100;
-  } else if (charge<=0){
-    charge=1;
-  }
-  
   display.clearDisplay();
   display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(0,15);
   display.println("Begin Set!");
+  display.setTextSize(1);
+  display.setCursor(50,0);
+  display.print(restTime);
+  display.print(" min");
   
-  checkBatteryandDisplay();
+  charge = fuelGauge.stateOfCharge();
+	if(charge>100){
+		charge=100;
+	} else if (charge<=0){
+		charge=1;
+	}
+  systemTrayDisplay();
   display.display();
-  initializeBluetooth();
-  RFduinoBLE.deviceName = "OpenBarbell";
-  RFduinoBLE.advertisementData = "OpenBarbell";
 }
 
 // ******************************************************************** \\
@@ -248,19 +256,47 @@ void loop() {
   //Elliot addition
   //initializeBluetooth();
   
-  goingUpward = !digitalRead(pin_encoder_dir);
+  goingUpward = (isFlipped)?(digitalRead(pin_encoder_dir)):(!digitalRead(pin_encoder_dir));
 
   buttonStateLeft = digitalRead(pin_buttonLeft);
   buttonStateRight = digitalRead(pin_buttonRight);
 
   calcRep(goingUpward, state);
-  
   buttonStateCalc(buttonStateRight, buttonStateLeft);
-
+  minuteTimer();
 }
 
 // **************************************************************************************************************** \\
 
+
+
+
+
+
+// ********** Function to update rest timer and battery fuel gauge every minute ********** \\
+
+void minuteTimer(){
+  if(((millis()-minTimer)%oneMinute) < 20){
+	if((millis()-minTimer2)>30){
+	  minTimer2 = millis();
+	  restTime++;
+	  
+	  charge = fuelGauge.stateOfCharge();
+	  if(charge>100){
+		charge=100;
+	  } else if (charge<=0){
+		charge=1;
+		}
+  
+	  display.setTextColor(WHITE,BLACK);
+	  display.setTextSize(1);
+	  display.setCursor(50,0);
+	  display.print(restTime);
+	  display.print(" min");
+	  display.display();
+	}
+  }
+}
 
 
 
@@ -272,6 +308,11 @@ void initializeBluetooth(){
     bluetoothOn = true;
     RFduinoBLE.begin();
     RFduino_ULPDelay(0);
+	
+	//initializing bluetooth seems to mess with the millis() function. So we have to initialize timers after BT
+	displayTime = millis();
+	minTimer = millis();
+	minTimer2 = millis();
   //}
 }
 
@@ -348,23 +389,18 @@ void send_floatList(float *floatList, int len) {
 
 
 
-// ********** Function to check battery charge and add it to the screen. Will be displayed to the screen outside of this function ********** \\
+// ********** Function to add battery and rest timer to the screen buffer. Will be displayed to the screen outside of this function ********** \\
 
-void checkBatteryandDisplay(){
-  //Only updates the battery percentage when requested by other functions. Does not run on a loop.
-    charge = fuelGauge.stateOfCharge();
-  if(charge>100){
-    charge=100;
-  } else if (charge<=0){
-    charge=1;
-  }
-  
-  display.setTextSize(1);
-  display.setCursor(104,0);
-  display.print("    ");
-  display.setCursor(104,0);
-  display.print(charge);
-  display.print("%");
+void systemTrayDisplay(){
+
+	display.setTextColor(WHITE,BLACK);
+	display.setTextSize(1);
+	display.setCursor(50,0);
+	display.print(restTime);
+	display.print(" min");
+	display.setCursor(104,0);
+	display.print(charge);
+	display.print("%");
 }
 
 // ***************************************************************************************************************************************** \\
@@ -402,10 +438,11 @@ void calcRep(int isGoingUpward, int currentState){
         counter_lengthbyticinfunction=0;
         counter_simplelengthbytic=0;
         starttime = tic_timestamp;
+		send_floatList(startMessage, 1);
         rep += 1;
         sumVelocities = 0;
         lastDisplacement = startheight;
-        tic_time2 = 0;
+        tic_time2 = micros();
         minDT = 1000000;
         i = 0;
       }
@@ -438,10 +475,11 @@ void calcRep(int isGoingUpward, int currentState){
           peakVelocity[rep] = (float)(ticLength*1000/((long)(minDT)))/1000;
           repArray[rep] = (float)avgVelocity/1000;
           repDone = rep;
-          
+          minTimer = millis();
+          minTimer2 = millis();
+		  restTime = 0;
           //bluetooth broadcast Elliot addition
-          if (bluetoothOn) {
-
+          if (bluetoothOn) { //probably not needed anymore since BT is always on
             repPerformance[0] = (float) rep;
             repPerformance[1] = (float) i;
             repPerformance[2] = (float) avgVelocity; 
@@ -487,7 +525,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
   
   // since hooking up to battery power, we want to turn off backlight after a certain time.
   // if the displayed rep hasn't changed in a while, we don't need the backlight
-  if ((micros() - displayTime) > backlightTime){
+  if ((millis() - displayTime) > backlightTime){
     display.ssd1306_command(SSD1306_DISPLAYOFF);
     backlightFlag = 0; // might not be necessary anymore -- Nate
   }
@@ -495,8 +533,12 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
   //update rep to be displayed to the screen if you recorded a new rep
   if (repDone != repDoneLast){
     repDisplay = repDone; 
-    repDoneLast = repDone;
+	//repDisplayLast and repDoneLast are reset below
+	if(!backlightFlag){
     display.ssd1306_command(SSD1306_DISPLAYON);
+	systemTrayDisplay();
+	display.display();
+	}
   }
   
   //register a button press on the release of the right button
@@ -505,24 +547,34 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       repDisplay += 1;
     }else {
       display.ssd1306_command(SSD1306_DISPLAYON); 
-    backlightFlag = 1;
+	  backlightFlag = 1;
+	  systemTrayDisplay();
+	  display.display();
+	  }
     rightHold = 0;
     RbuttonDepressed = 0;
-    displayTime = micros();
-    bluetoothStartNextLoop = true;
-    }
+	//this flag forces the double hold to execute its code for only one loop
+	accomplishedDoubleHold = false;
+    displayTime = millis();
+    //bluetoothStartNextLoop = true;
+    
   }
   //register a button press on the release of the left button 
   if (buttonstateLtemp && !buttonstateL){
-    if ((backlightFlag)&&(repDisplay > 1)){
+    if ((backlightFlag)&&(repDisplay > 1)&&(repDisplay < repDone + 2)){
       repDisplay -= 1;
     } else {
-      display.ssd1306_command(SSD1306_DISPLAYON);  
+      display.ssd1306_command(SSD1306_DISPLAYON); 	  
       backlightFlag = 1;
-      leftHold = 0;
-      LbuttonDepressed = 0;
-      displayTime = micros();
-    }
+	  systemTrayDisplay();
+	  display.display();
+	  }
+    leftHold = 0;
+    LbuttonDepressed = 0;
+	//this flag forces the double hold to execute its code for only one loop
+	accomplishedDoubleHold = false;
+    displayTime = millis();
+    
   }
   
   //set a flag if you just pressed the right button, and look at when that happened
@@ -540,13 +592,22 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
   //if both buttons are depressed, enable bluetooth if over 5 seconds
   if (LbuttonDepressed && RbuttonDepressed){
     if (((millis() - rightHold) > bothHoldActionTime)&&((millis() - leftHold) > bothHoldActionTime)){
-      if (!bluetoothOn && !bluetoothStartNextLoop){
-        bluetoothStartNextLoop = true;
+      if (!accomplishedDoubleHold){
+        isFlipped = !isFlipped;
+		accomplishedDoubleHold = true;
         //rightHold = 
+		display.clearDisplay();
+		display.invertDisplay(isFlipped);
         display.setTextSize(1);
-        display.setCursor(64,0);
-        display.print("BT ON");
+        display.setCursor(0,0);
+		if(isFlipped){
+			display.print("  INVERT MODE ON");
+		}else display.print("  INVERT MODE OFF");
         display.display();
+		display.startscrollleft(0x00, 0x0F);
+		RFduino_ULPDelay(SECONDS(2));
+		display.stopscroll();
+		repDisplay = repDone + 1;
       }
     }
   }
@@ -559,41 +620,43 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
     }
   }
   */
-  if (repDisplay != repDisplayLast){
-  
+  if ((repDisplay != repDisplayLast)||(repDone != repDoneLast)){  
     // if the displayed rep changes, keep the time so we know when to dim the backlight
-    displayTime = micros();
+    displayTime = millis();
     // make sure we can see the new rep
     display.ssd1306_command(SSD1306_DISPLAYON);
     backlightFlag = 1;
     
     if (repDisplay == (repDone + 1)){
-    
-      display.clearDisplay(); //nate add
-      display.setTextSize(2);
-      display.setTextColor(WHITE);
-      display.setCursor(0,0);
-      display.println("Delete");
-      display.println("Past Set?");
-      display.setTextSize(1);
-      display.setCursor(0,40);
-      display.println("R Button-Delete Set");
-      display.println("L Button-Go Back");
-      checkBatteryandDisplay();
-      display.display();         //end nate add
+		//This 'if' statement keeps you from going from "Begin Set" back to "Delete Past Set?"
+		if(repDisplayLast < (repDone + 1)){
+		  display.clearDisplay(); //nate add
+		  display.setTextSize(2);
+		  display.setTextColor(WHITE);
+		  display.setCursor(0,0);
+		  display.println("Delete");
+		  display.println("Past Set?");
+		  display.setTextSize(1);
+		  display.setCursor(0,40);
+		  display.println("R Button-Delete Set");
+		  display.println("L Button-Go Back");
+		  display.display();         //end nate add
+		}
     } else if (repDisplay > (repDone + 1)){
       display.clearDisplay(); //nate add
       display.setTextSize(2);
       display.setTextColor(WHITE);
       display.setCursor(0,15);
       display.print("Begin Set!");
-      checkBatteryandDisplay();
+	  systemTrayDisplay();
       display.display();         //end nate add
       startheight = displacement;
       counter_simplelengthbytic=0; //JDLTEST
       counter_lengthbyticinfunction=0;  //JDLTest
+	  //This line keeps the repDisplay value from getting too big, and causing a bug to miss the first rep (edit: might not be necessary)
+	  //repDisplay = repDone + 2;
       
-      rep = 1;
+      rep = 0;
       repDone = 0;
       repDoneLast = 0;
       sumVelocities = 0;
@@ -602,6 +665,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       memset(myVelocities,0,sizeof(myVelocities));
       memset(dispArray,0,sizeof(dispArray));
       memset(timeArray,0,sizeof(timeArray));
+      memset(peakVelocity,0,sizeof(peakVelocity));
       //memset(instVelTimestamps,0,sizeof(instVelTimestamps));
       i = 0;
     } else {
@@ -624,7 +688,8 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       display.setTextSize(1);
       display.print("m/s");
       display.setCursor(80,9);
-      display.print(dispArray[repDisplay]);
+      //display.print(dispArray[repDisplay]);
+      display.print(myVelocities[0]);
       display.setCursor(80,19);
       display.print(timeArray[repDisplay]);
       display.setCursor(80,29);
@@ -640,6 +705,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       display.setCursor(0,0);
       display.print("Rep#:");
       display.print(repDisplay);
+	  systemTrayDisplay();
       //display.setTextSize(2);
       //display.setTextColor(WHITE);
       //display.setCursor(0,40);
@@ -647,11 +713,9 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       //display.print(total_displacement/1000);
       //display.print("-");
       //display.print(((long)total_time)/1000);
-        
-      checkBatteryandDisplay();
       display.display();         //end nate add
     }
-    
+    repDoneLast = repDone;
     repDisplayLast = repDisplay; 
   }
   
