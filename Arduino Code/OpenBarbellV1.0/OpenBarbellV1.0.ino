@@ -46,9 +46,6 @@ float CODE_VERSION = 1.02;
 boolean bluetoothOn = false;  // Elliot addition
 boolean bluetoothStartNextLoop = false; // Elliot addition
 float repPerformance[] = {0.0, 1.0,2.0,3.0,4.0,5.0};  // Elliot addition
-int repPerformanceI[] = {0,1,2,3,4,5};  // Elliot addition
-long loopCount = 0; // Elliot addition
-int looploopCount = 0; // Elliot addition
 
 static const unsigned char PROGMEM logo16_glcd_bmp[] =
 { B00000000, B11000000,
@@ -140,7 +137,7 @@ long instvel = 0;
 int flipLED = 0;
 int charge = 50;
 int restTime = 0;
-float startMessage[1] = {1234.0};
+float startMessage[1] = {-1234.0};  // flag start of a new session with a negative number
 int battUpdates = 0;
 //LiquidCrystal_I2C lcd(0x27,20,4); //Addr: 0x3F, 20 chars & 4 lines    Nate comment
 const int threshold_buttonhold=100; //cycles of buttonholdtimer to cross threshold
@@ -264,6 +261,7 @@ void loop() {
   calcRep(goingUpward, state);
   buttonStateCalc(buttonStateRight, buttonStateLeft);
   minuteTimer();
+
 }
 
 // **************************************************************************************************************** \\
@@ -382,6 +380,31 @@ void send_floatList(float *floatList, int len) {
   }
 } // END send_floatList
 
+void send_float_from_intList(int *intList, int len) {
+  for (int i=0; i < len; i++) {
+    RFduinoBLE.sendFloat((float) intList[i]);
+    RFduino_ULPDelay(50);  // appears to be a number > 1 otherwise the end of long arrays are truncated in the transmission
+  }
+} // END send_float_from_intList
+
+void send_single_float(float singleFloat) {
+    RFduinoBLE.sendFloat(singleFloat);
+    RFduino_ULPDelay(1);
+} // END send_single_float
+
+void send_all_data() {
+  repPerformance[0] = (float) rep;
+  repPerformance[1] = (float) i;
+  repPerformance[2] = (float) avgVelocity; 
+  repPerformance[3] = (float) repArray[rep]; 
+  repPerformance[4] = (float) total_displacement; 
+  repPerformance[5] = (float) peakVelocity[rep]; 
+  send_floatList(repPerformance, 6);
+  send_single_float(-9876.0);
+  send_float_from_intList(myVelocities, i);
+  send_single_float(-6789.0);            
+} //END send_all_data
+
 // ************************************************************************** \\
 
 
@@ -480,23 +503,7 @@ void calcRep(int isGoingUpward, int currentState){
 		  restTime = 0;
           //bluetooth broadcast Elliot addition
           if (bluetoothOn) { //probably not needed anymore since BT is always on
-            repPerformance[0] = (float) rep;
-            repPerformance[1] = (float) i;
-            repPerformance[2] = (float) avgVelocity; 
-            repPerformance[3] = (float) repArray[rep]; 
-            repPerformance[4] = (float) total_displacement; 
-            repPerformance[5] = (float) peakVelocity[rep]; 
-            send_floatList(repPerformance, 6); 
- /*          
-            repPerformanceI[0] = rep;
-            repPerformanceI[1] = i;
-            repPerformanceI[2] = (int) avgVelocity; 
-            repPerformanceI[3] = (int) total_time / 1000; 
-            repPerformanceI[4] = (int) total_displacement / 100; // overflows sometimes, so sign bit turned on
-            repPerformanceI[5] = (int) (peakVelocity[rep] * 1000); 
-            send_intList(repPerformanceI, 6); 
-*/
-//            send_intList_charString(repPerformanceI, 6);
+            send_all_data();
           }
           
         } else { 
