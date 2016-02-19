@@ -46,9 +46,6 @@ float CODE_VERSION = 1.02;
 boolean bluetoothOn = false;  // Elliot addition
 boolean bluetoothStartNextLoop = false; // Elliot addition
 float repPerformance[] = {0.0, 1.0,2.0,3.0,4.0,5.0};  // Elliot addition
-int repPerformanceI[] = {0,1,2,3,4,5};  // Elliot addition
-long loopCount = 0; // Elliot addition
-int looploopCount = 0; // Elliot addition
 
 static const unsigned char PROGMEM logo16_glcd_bmp[] =
 { B00000000, B11000000,
@@ -67,7 +64,7 @@ static const unsigned char PROGMEM logo16_glcd_bmp[] =
   B01111100, B11110000,
   B01110000, B01110000,
   B00000000, B00110000 };
-const int pin_buttonRight =  0;      // the number of the LED pin
+const int pin_buttonRight =  0;
 const int pin_buttonLeft = 1;
 const int pin_led =  2;      // the number of the LED pin
 const int pin_encoder_dir = 3;
@@ -103,8 +100,11 @@ unsigned long tic_time2 = 0;
 unsigned long displayTime = 0;
 unsigned long batteryTime = 0;
 unsigned long minTimer = 0;
+unsigned long fiveSecTimer = 0;
 unsigned long minTimer2 = 0;
+unsigned long fiveSecTimer2 = 0;
 unsigned long oneMinute = 60000;
+unsigned long fiveSec = 5000;
 const unsigned long backlightTime = 10000;
 int i = 0;
 int myVelocities[500] = {0};
@@ -120,6 +120,7 @@ unsigned long leftHold = 0;
 int rightHoldActionTime = 1500;
 int leftHoldActionTime = 1500;
 int bothHoldActionTime = 3000;
+int singleHoldActionTime = 3000;
 int replast = 0;
 boolean backlightFlag = 1;
 boolean RbuttonDepressed = 0;
@@ -140,7 +141,7 @@ long instvel = 0;
 int flipLED = 0;
 int charge = 50;
 int restTime = 0;
-float startMessage[1] = {1234.0};
+float startMessage[1] = {-1234.0};
 int battUpdates = 0;
 //LiquidCrystal_I2C lcd(0x27,20,4); //Addr: 0x3F, 20 chars & 4 lines    Nate comment
 const int threshold_buttonhold=100; //cycles of buttonholdtimer to cross threshold
@@ -152,6 +153,8 @@ bool buttonLeftLongPress=0;
 bool bothbuttonlong=0;
 bool isFlipped = false;
 bool accomplishedDoubleHold = false;
+bool accomplishedSingleHold = false;
+bool flipPowerOlyScreen = false; //0 = Power screen, 1 = Oly screen
   
 int counter_simplelengthbytic=0;
 int counter_lengthbyticinfunction=0;
@@ -194,7 +197,6 @@ void setup() {
   pinMode(pin_encoder_tach, INPUT); 
   pinMode(pin_encoder_dir, INPUT); 
 
-  digitalWrite(pin_led,HIGH);
   RFduino_pinWakeCallback(pin_encoder_tach, HIGH, encoderState);
 
   /* Elliots test messages for Bluetooth
@@ -249,24 +251,23 @@ void setup() {
 
 
 
+// ****************************************************************************************** \\
 // ********** Primary loop. This loop should only run function calls or poll pins. ********** \\
+// ****************************************************************************************** \\
 
 void loop() {
   
-  //Elliot addition
-  //initializeBluetooth();
-  
   goingUpward = (isFlipped)?(digitalRead(pin_encoder_dir)):(!digitalRead(pin_encoder_dir));
-
-  buttonStateLeft = digitalRead(pin_buttonLeft);
-  buttonStateRight = digitalRead(pin_buttonRight);
-
   calcRep(goingUpward, state);
   buttonStateCalc(buttonStateRight, buttonStateLeft);
   minuteTimer();
+  displayOffTimer();
+  LEDBlink();
+  
 }
 
-// **************************************************************************************************************** \\
+// ****************************************************************************************** \\
+// ****************************************************************************************** \\
 
 
 
@@ -298,6 +299,50 @@ void minuteTimer(){
   }
 }
 
+// *************************************************************************************** \\
+
+
+
+
+
+
+// ********** Function to blink LED every 5 seconds, if there's nothing going on ********** \\
+
+void LEDBlink(){
+	//if it's been 5 seconds, enter the statement. If the second timer is true, it won't be during the next loop so the first timer can't trip more than once.
+  if((((millis()%fiveSec) < 20)&&(!goingUpward)){
+	if((millis()-fiveSecTimer2)>30){
+	  fiveSecTimer2 = millis();
+	  
+	  digitalWrite(pin_led,HIGH);
+	  RFduino_ULPDelay(20);
+	  digitalWrite(pin_led,LOW);
+	}
+  }
+}
+
+// *************************************************************************************** \\
+
+
+
+
+
+
+// ********** Function to check if we should shut off the display ********** \\
+
+void displayOffTimer(){
+  // since hooking up to battery power, we want to turn off backlight after a certain time.
+  // if the displayed rep hasn't changed in a while, we don't need the backlight
+  if ((millis() - displayTime) > backlightTime){
+    display.ssd1306_command(SSD1306_DISPLAYOFF);
+    backlightFlag = 0;
+  }
+}
+
+// ************************************************************************* \\
+
+
+
 
 
 
@@ -313,6 +358,8 @@ void initializeBluetooth(){
 	displayTime = millis();
 	minTimer = millis();
 	minTimer2 = millis();
+	fiveSecTimer = millis();
+	fiveSecTimer2 = millis();
   //}
 }
 
@@ -389,13 +436,51 @@ void send_floatList(float *floatList, int len) {
 
 
 
-// ********** Function to add battery and rest timer to the screen buffer. Will be displayed to the screen outside of this function ********** \\
+// ********** Function to send bulk velocity data over Bluetooth ********** \\
+
+void send_float_from_intList(int *intList, int len) {
+  for (int i=0; i < len; i++) {
+    RFduinoBLE.sendFloat((float) intList[i]);
+    RFduino_ULPDelay(5);  // appears to be a number > 1 otherwise the end of long arrays are truncated in the transmission
+  }
+} // END send_float_from_intList
+
+void send_single_float(float singleFloat) {
+    RFduinoBLE.sendFloat(singleFloat);
+    RFduino_ULPDelay(1);
+} // END send_single_float
+
+void send_all_data() {
+  repPerformance[0] = (float) rep;
+  repPerformance[1] = (float) i;
+  repPerformance[2] = (float) avgVelocity; 
+  repPerformance[3] = (float) repArray[rep]; 
+  repPerformance[4] = (float) total_displacement; 
+  repPerformance[5] = (float) peakVelocity[rep]; 
+  send_floatList(repPerformance, 6);
+  send_single_float(-9876.0);
+  send_float_from_intList(myVelocities, i);
+  send_single_float(-6789.0);            
+} //END send_all_data
+
+// ************************************************************************ \\
+
+
+
+
+
+
+// ********** Function to add rep number, battery and rest timer to the screen buffer. Will be displayed to the screen outside of this function ********** \\
 
 void systemTrayDisplay(){
 
 	display.setTextColor(WHITE,BLACK);
 	display.setTextSize(1);
-	display.setCursor(50,0);
+	display.setCursor(0,0);
+	display.print("Rep#:");
+	display.print(repDisplay);
+	display.print("  ");
+	display.setCursor(55,0);
 	display.print(restTime);
 	display.print(" min");
 	display.setCursor(104,0);
@@ -480,23 +565,7 @@ void calcRep(int isGoingUpward, int currentState){
 		  restTime = 0;
           //bluetooth broadcast Elliot addition
           if (bluetoothOn) { //probably not needed anymore since BT is always on
-            repPerformance[0] = (float) rep;
-            repPerformance[1] = (float) i;
-            repPerformance[2] = (float) avgVelocity; 
-            repPerformance[3] = (float) repArray[rep]; 
-            repPerformance[4] = (float) total_displacement; 
-            repPerformance[5] = (float) peakVelocity[rep]; 
-            send_floatList(repPerformance, 6); 
- /*          
-            repPerformanceI[0] = rep;
-            repPerformanceI[1] = i;
-            repPerformanceI[2] = (int) avgVelocity; 
-            repPerformanceI[3] = (int) total_time / 1000; 
-            repPerformanceI[4] = (int) total_displacement / 100; // overflows sometimes, so sign bit turned on
-            repPerformanceI[5] = (int) (peakVelocity[rep] * 1000); 
-            send_intList(repPerformanceI, 6); 
-*/
-//            send_intList_charString(repPerformanceI, 6);
+            send_all_data();
           }
           
         } else { 
@@ -523,12 +592,9 @@ void calcRep(int isGoingUpward, int currentState){
 
 void buttonStateCalc(int buttonstateR, int buttonstateL){
   
-  // since hooking up to battery power, we want to turn off backlight after a certain time.
-  // if the displayed rep hasn't changed in a while, we don't need the backlight
-  if ((millis() - displayTime) > backlightTime){
-    display.ssd1306_command(SSD1306_DISPLAYOFF);
-    backlightFlag = 0; // might not be necessary anymore -- Nate
-  }
+  //Read button state once per loop
+  buttonStateLeft = digitalRead(pin_buttonLeft);
+  buttonStateRight = digitalRead(pin_buttonRight);
   
   //update rep to be displayed to the screen if you recorded a new rep
   if (repDone != repDoneLast){
@@ -555,10 +621,12 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
     RbuttonDepressed = 0;
 	//this flag forces the double hold to execute its code for only one loop
 	accomplishedDoubleHold = false;
+	accomplishedSingleHold = false;
     displayTime = millis();
     //bluetoothStartNextLoop = true;
     
   }
+  
   //register a button press on the release of the left button 
   if (buttonstateLtemp && !buttonstateL){
     if ((backlightFlag)&&(repDisplay > 1)&&(repDisplay < repDone + 2)){
@@ -573,6 +641,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
     LbuttonDepressed = 0;
 	//this flag forces the double hold to execute its code for only one loop
 	accomplishedDoubleHold = false;
+	accomplishedSingleHold = false;
     displayTime = millis();
     
   }
@@ -598,18 +667,37 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
         //rightHold = 
 		display.clearDisplay();
 		display.invertDisplay(isFlipped);
-        display.setTextSize(1);
+        display.setTextSize(2);
         display.setCursor(0,0);
 		if(isFlipped){
-			display.print("  INVERT MODE ON");
-		}else display.print("  INVERT MODE OFF");
+			display.print("INVERT MODE ON");
+		}else display.print("INVERT MODE OFF");
         display.display();
-		display.startscrollleft(0x00, 0x0F);
+		//display.startscrollleft(0x00, 0x0F);
 		RFduino_ULPDelay(SECONDS(2));
-		display.stopscroll();
-		repDisplay = repDone + 1;
+		//display.stopscroll();
+		repDisplay = repDone;
       }
     }
+  } else if (LbuttonDepressed || RbuttonDepressed){
+		if (((millis() - rightHold) > singleHoldActionTime)&&((millis() - leftHold) > singleHoldActionTime)){
+			if(!accomplishedSingleHold){
+			flipPowerOlyScreen = !flipPowerOlyScreen;
+			accomplishedSingleHold = true;
+			
+			display.clearDisplay();
+			display.setTextSize(2);
+			display.setCursor(0,0);
+			if(flipPowerOlyScreen){
+				display.print("OLY MODE");
+			}else display.print("POWER MODE");
+			display.display();
+			//display.startscrollleft(0x00, 0x0F);
+			RFduino_ULPDelay(SECONDS(2));
+			//display.stopscroll();
+			repDisplay = repDone;
+			}
+		}
   }
   /* Button and string combination code. Not finished - does not work. Might need to separate Rbutton and Lbutton, as millis() - XHold for the non-depressed button will almost always be greater than the action times
   if (RbuttonDepressed ^ LbuttonDepressed){
@@ -656,7 +744,8 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 	  //This line keeps the repDisplay value from getting too big, and causing a bug to miss the first rep (edit: might not be necessary)
 	  //repDisplay = repDone + 2;
       
-      rep = 0;
+	  //Yes, you can just say rep = goingUpward. But goingUpward can only be 0 or 1 and rep can be any integer. It just doesn't feel right.
+      rep = (goingUpward)?(1):(0);
       repDone = 0;
       repDoneLast = 0;
       sumVelocities = 0;
@@ -669,51 +758,69 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       //memset(instVelTimestamps,0,sizeof(instVelTimestamps));
       i = 0;
     } else {
-      display.clearDisplay(); //nate add
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0,9);
-      display.print("Avg Vel");
-      display.setTextSize(2);
-      display.setTextColor(WHITE);
-      display.setCursor(0,19);
-      display.print(repArray[repDisplay]);
-      display.setTextSize(1);
-      display.print("m/s");
-      display.setCursor(0,36);
-      display.print("Peak Vel");
-      display.setCursor(0,45);
-      display.setTextSize(2);
-      display.print(peakVelocity[repDisplay]);
-      display.setTextSize(1);
-      display.print("m/s");
-      display.setCursor(80,9);
-      //display.print(dispArray[repDisplay]);
-      display.print(myVelocities[0]);
-      display.setCursor(80,19);
-      display.print(timeArray[repDisplay]);
-      display.setCursor(80,29);
-      display.print(testVelocity[repDisplay]);
-      //display.setTextSize(2);
-      /*  display.setCursor(80,6);  //JDLTEST
-        display.print(counter_simplelengthbytic); //JDLTEST
-        display.print(counter_lengthbyticinfunction);
-        counter_simplelengthbytic=0; //JDLTEST
-        counter_lengthbyticinfunction=0;
-        */
-      display.setTextSize(1);
-      display.setCursor(0,0);
-      display.print("Rep#:");
-      display.print(repDisplay);
-	  systemTrayDisplay();
-      //display.setTextSize(2);
-      //display.setTextColor(WHITE);
-      //display.setCursor(0,40);
-      //display.print("-");
-      //display.print(total_displacement/1000);
-      //display.print("-");
-      //display.print(((long)total_time)/1000);
-      display.display();         //end nate add
+		if(!flipPowerOlyScreen){
+		  display.clearDisplay(); //nate add
+		  display.setTextSize(1);
+		  display.setTextColor(WHITE);
+		  display.setCursor(0,9);
+		  display.print("Avg Vel:");
+		  display.setTextSize(3);
+		  display.setTextColor(WHITE);
+		  display.setCursor(0,19);
+		  display.print(repArray[repDisplay]);
+		  display.setTextSize(1);
+		  display.print("m/s");
+		  display.setCursor(0,42);
+		  display.print("Peak Vel:");
+		  display.setCursor(0,51);
+		  display.print(peakVelocity[repDisplay]);
+		  display.print("m/s");
+		  display.setCursor(82,42);
+		  display.print("ROM:");
+		  display.setCursor(82,51);
+		  display.print(dispArray[repDisplay]);
+		  //display.setTextSize(2);
+		  /*  display.setCursor(80,6);  //JDLTEST
+			display.print(counter_simplelengthbytic); //JDLTEST
+			display.print(counter_lengthbyticinfunction);
+			counter_simplelengthbytic=0; //JDLTEST
+			counter_lengthbyticinfunction=0;
+			*/
+
+		  systemTrayDisplay();
+		  display.display();         //end nate add
+	    } else {
+		  display.clearDisplay(); //nate add
+		  display.setTextSize(1);
+		  display.setTextColor(WHITE);
+		  display.setCursor(0,9);
+		  display.print("Peak Vel:");
+		  display.setTextSize(3);
+		  display.setTextColor(WHITE);
+		  display.setCursor(0,19);
+		  display.print(peakVelocity[repDisplay]);
+		  display.setTextSize(1);
+		  display.print("m/s");
+		  display.setCursor(0,42);
+		  display.print("Time:");
+		  display.setCursor(0,51);
+		  display.print(timeArray[repDisplay]);
+		  display.print("sec");
+		  display.setCursor(82,42);
+		  display.print("ROM:");
+		  display.setCursor(82,51);
+		  display.print(dispArray[repDisplay]);
+		  //display.setTextSize(2);
+		  /*  display.setCursor(80,6);  //JDLTEST
+			display.print(counter_simplelengthbytic); //JDLTEST
+			display.print(counter_lengthbyticinfunction);
+			counter_simplelengthbytic=0; //JDLTEST
+			counter_lengthbyticinfunction=0;
+			*/
+
+		  systemTrayDisplay();
+		  display.display();         //end nate add
+	    }
     }
     repDoneLast = repDone;
     repDisplayLast = repDisplay; 
