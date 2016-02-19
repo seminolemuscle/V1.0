@@ -230,10 +230,6 @@ void setup() {
   display.setTextColor(WHITE);
   display.setCursor(0,15);
   display.println("Begin Set!");
-  display.setTextSize(1);
-  display.setCursor(50,0);
-  display.print(restTime);
-  display.print(" min");
   
   charge = fuelGauge.stateOfCharge();
 	if(charge>100){
@@ -242,6 +238,10 @@ void setup() {
 		charge=1;
 	}
   systemTrayDisplay();
+  display.setTextColor(WHITE,BLACK);
+  display.setTextSize(1);
+  display.setCursor(0,0);
+  display.print("Rep#:1 ");
   display.display();
 }
 
@@ -310,7 +310,7 @@ void minuteTimer(){
 
 void LEDBlink(){
 	//if it's been 5 seconds, enter the statement. If the second timer is true, it won't be during the next loop so the first timer can't trip more than once.
-  if((((millis()%fiveSec) < 20)&&(!goingUpward)){
+  if(((millis()%fiveSec) < 20)&&(!goingUpward)){
 	if((millis()-fiveSecTimer2)>30){
 	  fiveSecTimer2 = millis();
 	  
@@ -560,6 +560,7 @@ void calcRep(int isGoingUpward, int currentState){
           peakVelocity[rep] = (float)(ticLength*1000/((long)(minDT)))/1000;
           repArray[rep] = (float)avgVelocity/1000;
           repDone = rep;
+		  //resets 60 second rest time counter
           minTimer = millis();
           minTimer2 = millis();
 		  restTime = 0;
@@ -731,13 +732,6 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.display();         //end nate add
 		}
     } else if (repDisplay > (repDone + 1)){
-      display.clearDisplay(); //nate add
-      display.setTextSize(2);
-      display.setTextColor(WHITE);
-      display.setCursor(0,15);
-      display.print("Begin Set!");
-	  systemTrayDisplay();
-      display.display();         //end nate add
       startheight = displacement;
       counter_simplelengthbytic=0; //JDLTEST
       counter_lengthbyticinfunction=0;  //JDLTest
@@ -749,6 +743,18 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       repDone = 0;
       repDoneLast = 0;
       sumVelocities = 0;
+	  
+	  display.clearDisplay(); //nate add
+      display.setTextSize(2);
+      display.setTextColor(WHITE,BLACK);
+      display.setCursor(0,15);
+      display.print("Begin Set!");
+	  systemTrayDisplay();
+	  display.setTextSize(1);
+	  display.setCursor(0,0);
+	  display.print("Rep#:1 ");
+      display.display();         //end nate add
+	  
       memset(repArray,0,sizeof(repArray));
       memset(testVelocity,0,sizeof(testVelocity));
       memset(myVelocities,0,sizeof(myVelocities));
