@@ -47,23 +47,6 @@ boolean bluetoothOn = false;  // Elliot addition
 boolean bluetoothStartNextLoop = false; // Elliot addition
 float repPerformance[] = {0.0, 1.0,2.0,3.0,4.0,5.0};  // Elliot addition
 
-static const unsigned char PROGMEM logo16_glcd_bmp[] =
-{ B00000000, B11000000,
-  B00000001, B11000000,
-  B00000001, B11000000,
-  B00000011, B11100000,
-  B11110011, B11100000,
-  B11111110, B11111000,
-  B01111110, B11111111,
-  B00110011, B10011111,
-  B00011111, B11111100,
-  B00001101, B01110000,
-  B00011011, B10100000,
-  B00111111, B11100000,
-  B00111111, B11110000,
-  B01111100, B11110000,
-  B01110000, B01110000,
-  B00000000, B00110000 };
 const int pin_buttonRight =  0;
 const int pin_buttonLeft = 1;
 const int pin_led =  2;      // the number of the LED pin
@@ -74,18 +57,18 @@ const unsigned long batteryCheckTime = 10000000;     //The amount of time betwee
 const long ticLength = UNIT63; //in micrometers
 volatile int state = LOW;
 volatile int goingUpward = HIGH;
-int isGoingUpwardLast = 0;
-int currentStateTemp = 0;
+uint16_t isGoingUpwardLast = 0;
+uint16_t currentStateTemp = 0;
 long startheight = 0;
 long sumVelocities = 0;
 long avgVelocity = 0;
 unsigned long starttime = 0;
-int tics = 0;
-int rep = 0;
-int repDone = 0;
-int repDoneLast = 0;
-int repDisplay = 0;
-int repDisplayLast = 0;
+uint16_t tics = 0;
+uint16_t rep = 0;
+uint16_t repDone = 0;
+uint16_t repDoneLast = 0;
+uint16_t repDisplay = 0;
+uint16_t repDisplayLast = 0;
 long displacement = 0;
 long total_displacement = 0;
 long lastDisplacement = 0;
@@ -105,30 +88,36 @@ unsigned long minTimer2 = 0;
 unsigned long fiveSecTimer2 = 0;
 unsigned long oneMinute = 60000;
 unsigned long fiveSec = 5000;
+unsigned long ticDiff = 0;
 const unsigned long backlightTime = 10000;
 int i = 0;
-int myVelocities[500] = {0};
-int initialized = 0;
-const int repArrayCount=100;
+uint16_t myVelocities[500] = {0};
+uint16_t initialized = 0;
+const int repArrayCount=90;
 float repArray[repArrayCount] = {0};
-int buttonStateRight = 0; // variable for reading the pushbutton status
-int buttonStateLeft = 0; // variable for reading the pushbutton status
-int buttonstateRtemp = 0;
-int buttonstateLtemp = 0;
+uint16_t buttonStateRight = 0; // variable for reading the pushbutton status
+uint16_t buttonStateLeft = 0; // variable for reading the pushbutton status
+uint16_t buttonstateRtemp = 0;
+uint16_t buttonstateLtemp = 0;
 unsigned long rightHold = 0;
 unsigned long leftHold = 0;
-int rightHoldActionTime = 1500;
-int leftHoldActionTime = 1500;
-int bothHoldActionTime = 3000;
-int singleHoldActionTime = 3000;
-int replast = 0;
+uint16_t rightHoldActionTime = 1500;
+uint16_t leftHoldActionTime = 1500;
+uint16_t bothHoldActionTime = 3000;
+uint16_t singleHoldActionTime = 3000;
+uint16_t replast = 0;
 boolean backlightFlag = 1;
 boolean RbuttonDepressed = 0;
 boolean LbuttonDepressed = 0;
 float testVelocity[repArrayCount] = {0};
 float peakVelocity[repArrayCount] = {0};
-float dispArray[repArrayCount] = {0};
+float peakAcceleration[repArrayCount] = {0};
+uint16_t dispArray[repArrayCount] = {0};
 float timeArray[repArrayCount] = {0};
+float peakAcc = 0;
+float peakAccFinal = 0;
+float currentInstVel = 0;
+float lastInstVel = 0;
 //unsigned int instVelTimestamps[1000] = {0};
 // Pin 13: Arduino has an LED connected on pin 13
 // Pin 11: Teensy 2.0 has the LED on pin 11
@@ -138,11 +127,11 @@ static unsigned long last_interrupt_time = 0;
 static unsigned long last_interrupt_time2 = 0;
 static unsigned long last_tic_time = 0;
 long instvel = 0;
-int flipLED = 0;
-int charge = 50;
-int restTime = 0;
+uint16_t flipLED = 0;
+uint16_t charge = 50;
+uint16_t restTime = 0;
 float startMessage[1] = {-1234.0};
-int battUpdates = 0;
+//int battUpdates = 0;
 //LiquidCrystal_I2C lcd(0x27,20,4); //Addr: 0x3F, 20 chars & 4 lines    Nate comment
 const int threshold_buttonhold=100; //cycles of buttonholdtimer to cross threshold
 const int buttonholdtimer=10;  //delay time
@@ -210,16 +199,16 @@ void setup() {
   fuelGauge.showConfig();
 
   //Welcome Screen
-  display.clearDisplay();
-  display.setTextSize(3);
+  display.setTextSize(2);
   display.setTextColor(WHITE);
-  display.setCursor(0,0);
+  display.setCursor(68,5);
   display.println("Open");
-  display.setCursor(0,25);
+  display.setTextSize(1);
+  display.setCursor(68,21);
   display.println("Barbell");
   display.setTextSize(1);
-  display.setCursor(0,50);
-  display.print("Rev: ");
+  display.setCursor(68,32);
+  display.print("Rev:");
   display.print(CODE_VERSION);
   display.display();
   
@@ -291,7 +280,7 @@ void minuteTimer(){
   
 	  display.setTextColor(WHITE,BLACK);
 	  display.setTextSize(1);
-	  display.setCursor(50,0);
+	  display.setCursor(55,0);
 	  display.print(restTime);
 	  display.print(" min");
 	  display.display();
@@ -376,12 +365,12 @@ void RFduinoBLE_onReceive(char *data, int len)
 {
 // if the first byte is 0x01 / on / true
   if (data[0]){
-    Serial.println("new message received: " + charToString(data, len));  // buffer reused, so need to check length
+    //Serial.println("new message received: " + charToString(data, len));  // buffer reused, so need to check length
     String msg3 = charToString(data, min(len,13));
     if (msg3.equalsIgnoreCase("bluetooth off")) {
       bluetoothOn = false;
       bluetoothStartNextLoop= false;
-      Serial.println("bluetooth terminated");
+      //Serial.println("bluetooth terminated");
       RFduinoBLE.end();
     }
   }
@@ -438,10 +427,10 @@ void send_floatList(float *floatList, int len) {
 
 // ********** Function to send bulk velocity data over Bluetooth ********** \\
 
-void send_float_from_intList(int *intList, int len) {
+void send_float_from_intList(uint16_t *intList, uint16_t len) {
   for (int i=0; i < len; i++) {
     RFduinoBLE.sendFloat((float) intList[i]);
-    RFduino_ULPDelay(5);  // appears to be a number > 1 otherwise the end of long arrays are truncated in the transmission
+    RFduino_ULPDelay(17);  // appears to be a number > 1 otherwise the end of long arrays are truncated in the transmission. 17ms seems to be good for 600 floats
   }
 } // END send_float_from_intList
 
@@ -511,9 +500,16 @@ void calcRep(int isGoingUpward, int currentState){
       tic_timestamp = micros();
       //keeping instantaneous velocities for our peak velocity reading
       //instVelTimestamps[counter_lengthbyticinfunction] = (unsigned int)(tic_timestamp-tic_timestamp_last);
-      if((tic_timestamp - tic_timestamp_last) < minDT){
-        minDT = tic_timestamp - tic_timestamp_last;
+      ticDiff = tic_timestamp - tic_timestamp_last;
+	  if(ticDiff < minDT){
+        minDT = ticDiff;
       }
+	  currentInstVel = (float)(ticLength*1000/((long)(minDT)))/1000;
+	  peakAcc = (currentInstVel - lastInstVel)/((float)(ticDiff/1000000));
+	  if(peakAcc > peakAccFinal){
+		 peakAccFinal = peakAcc;
+	  }
+	  lastInstVel = currentInstVel;
       tic_timestamp_last = tic_timestamp;
       // If you're going upward but you were just going downward, clear your array so you can start a fresh rep
       if (!isGoingUpwardLast){
@@ -554,10 +550,11 @@ void calcRep(int isGoingUpward, int currentState){
           avgVelocity = sumVelocities/(long)i; 
           total_displacement = displacement - startheight;
           total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2);
-          dispArray[rep] = (float)total_displacement/1000;
+          dispArray[rep] = total_displacement/1000;
           timeArray[rep] = (float)total_time/1000000;
           testVelocity[rep] = (float)((total_displacement)*1000/((long)(total_time)))/1000;
           peakVelocity[rep] = (float)(ticLength*1000/((long)(minDT)))/1000;
+          peakAcceleration[rep] = peakAccFinal;
           repArray[rep] = (float)avgVelocity/1000;
           repDone = rep;
 		  //resets 60 second rest time counter
@@ -615,7 +612,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
     }else {
       display.ssd1306_command(SSD1306_DISPLAYON); 
 	  backlightFlag = 1;
-	  systemTrayDisplay();
+	  //systemTrayDisplay();
 	  display.display();
 	  }
     rightHold = 0;
@@ -635,7 +632,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
     } else {
       display.ssd1306_command(SSD1306_DISPLAYON); 	  
       backlightFlag = 1;
-	  systemTrayDisplay();
+	  //systemTrayDisplay();
 	  display.display();
 	  }
     leftHold = 0;
@@ -666,13 +663,22 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
         isFlipped = !isFlipped;
 		accomplishedDoubleHold = true;
         //rightHold = 
+		display.ssd1306_command(SSD1306_DISPLAYON); 
 		display.clearDisplay();
 		display.invertDisplay(isFlipped);
-        display.setTextSize(2);
+        display.setTextSize(3);
         display.setCursor(0,0);
 		if(isFlipped){
-			display.print("INVERT MODE ON");
-		}else display.print("INVERT MODE OFF");
+			display.print("INVERT");
+			display.setCursor(0,32);
+			display.setTextSize(2);
+			display.print("MODE ON");
+		}else {
+			display.print("INVERT");
+			display.setCursor(0,32);
+			display.setTextSize(2);
+			display.print("MODE OFF");
+		}
         display.display();
 		//display.startscrollleft(0x00, 0x0F);
 		RFduino_ULPDelay(SECONDS(2));
@@ -686,12 +692,19 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 			flipPowerOlyScreen = !flipPowerOlyScreen;
 			accomplishedSingleHold = true;
 			
+			display.ssd1306_command(SSD1306_DISPLAYON); 
 			display.clearDisplay();
-			display.setTextSize(2);
+			display.setTextSize(3);
 			display.setCursor(0,0);
 			if(flipPowerOlyScreen){
-				display.print("OLY MODE");
-			}else display.print("POWER MODE");
+				display.print("OLY");
+				display.setCursor(0,32);
+				display.print("MODE");
+			}else{
+				display.print("POWER");
+				display.setCursor(0,32);
+				display.print("MODE");
+			}
 			display.display();
 			//display.startscrollleft(0x00, 0x0F);
 			RFduino_ULPDelay(SECONDS(2));
@@ -754,6 +767,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 	  display.setCursor(0,0);
 	  display.print("Rep#:1 ");
       display.display();         //end nate add
+	  RFduino_ULPDelay(1);
 	  
       memset(repArray,0,sizeof(repArray));
       memset(testVelocity,0,sizeof(testVelocity));
@@ -785,6 +799,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.print("ROM:");
 		  display.setCursor(82,51);
 		  display.print(dispArray[repDisplay]);
+		  display.print("mm");
 		  //display.setTextSize(2);
 		  /*  display.setCursor(80,6);  //JDLTEST
 			display.print(counter_simplelengthbytic); //JDLTEST
@@ -812,10 +827,10 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.setCursor(0,51);
 		  display.print(timeArray[repDisplay]);
 		  display.print("sec");
-		  display.setCursor(82,42);
-		  display.print("ROM:");
-		  display.setCursor(82,51);
-		  display.print(dispArray[repDisplay]);
+		  display.setCursor(77,42);
+		  display.print("Peak Acc:");
+		  display.setCursor(77,51);
+		  display.print(peakAcceleration[repDisplay]);
 		  //display.setTextSize(2);
 		  /*  display.setCursor(80,6);  //JDLTEST
 			display.print(counter_simplelengthbytic); //JDLTEST
