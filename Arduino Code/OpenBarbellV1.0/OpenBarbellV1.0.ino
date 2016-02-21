@@ -37,11 +37,15 @@ Adafruit_SSD1306 display(OLED_RESET);
 #define DELTAY 2
 #define LOGO16_GLCD_HEIGHT 16 
 #define LOGO16_GLCD_WIDTH  16 
-#define UNIT63 2689
+#define UNIT63 2644
 #define UNIT93 2680
 #define UNIT56 2641
 
 float CODE_VERSION = 1.02;
+
+//START TestBed Section - Do not modify
+const bool testbed_readouts = 0;
+//END TestBed Section
 
 boolean bluetoothOn = false;  // Elliot addition
 boolean bluetoothStartNextLoop = false; // Elliot addition
@@ -800,13 +804,14 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.setCursor(82,51);
 		  display.print(dispArray[repDisplay]);
 		  display.print("mm");
-		  //display.setTextSize(2);
-		  /*  display.setCursor(80,6);  //JDLTEST
-			display.print(counter_simplelengthbytic); //JDLTEST
-			display.print(counter_lengthbyticinfunction);
-			counter_simplelengthbytic=0; //JDLTEST
-			counter_lengthbyticinfunction=0;
-			*/
+
+			if(testbed_readouts){
+				display.setTextSize(1);
+				display.setCursor(100,22);
+				display.print(counter_simplelengthbytic);
+				display.setCursor(80,32);
+				display.print(total_time/1000);
+			}
 
 		  systemTrayDisplay();
 		  display.display();         //end nate add
