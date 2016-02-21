@@ -98,7 +98,7 @@ int i = 0;
 unsigned long myDTs[500] = {0};
 uint16_t initialized = 0;
 const int repArrayCount=90;
-float repArray[repArrayCount] = {0};
+float repArray[repArrayCount] = {0.0};
 uint16_t buttonStateRight = 0; // variable for reading the pushbutton status
 uint16_t buttonStateLeft = 0; // variable for reading the pushbutton status
 uint16_t buttonstateRtemp = 0;
@@ -134,6 +134,7 @@ long instvel = 0;
 uint16_t flipLED = 0;
 uint16_t charge = 50;
 uint16_t restTime = 0;
+uint16_t myDTCounter = 0;
 float startMessage[1] = {-1234.0};
 //int battUpdates = 0;
 //LiquidCrystal_I2C lcd(0x27,20,4); //Addr: 0x3F, 20 chars & 4 lines    Nate comment
@@ -435,8 +436,9 @@ void send_floatList(float *floatList, int len) {
 void send_float_from_intList(unsigned long *intList, uint16_t len) {
   for (int i=0; i < len; i++) {
     RFduinoBLE.sendFloat((float) intList[i]);
-    RFduino_ULPDelay(17);  // appears to be a number > 1 otherwise the end of long arrays are truncated in the transmission. 17ms seems to be good for 600 floats
+	RFduino_ULPDelay(1);  // appears to be a number > 1 otherwise the end of long arrays are truncated in the transmission. 17ms seems to be good for 600 floats
   }
+  
 } // END send_float_from_intList
 
 void send_single_float(float singleFloat) {
@@ -522,11 +524,15 @@ void calcRep(int isGoingUpward, int currentState){
         tic_time2 = micros();
         minDT = 1000000;
         i = 0;
+		myDTCounter = 0;
       }
 	  //keeping instantaneous velocities for our peak velocity reading
       //instVelTimestamps[counter_lengthbyticinfunction] = (unsigned int)(tic_timestamp-tic_timestamp_last);
       ticDiff = tic_timestamp - tic_timestamp_last;
-	  myDTs[i] = ticDiff;
+	  if(!(myDTCounter%2)){
+		myDTs[(myDTCounter/2)] = ticDiff;
+	  }
+	  myDTCounter++;
 	  if(ticDiff < minDT){
         minDT = ticDiff;
       }
@@ -781,6 +787,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       memset(peakVelocity,0,sizeof(peakVelocity));
       //memset(instVelTimestamps,0,sizeof(instVelTimestamps));
       i = 0;
+      myDTCounter = 0;
     } else {
 		if(!flipPowerOlyScreen){
 		  display.clearDisplay(); //nate add
