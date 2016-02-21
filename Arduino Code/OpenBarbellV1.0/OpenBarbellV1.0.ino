@@ -41,7 +41,7 @@ Adafruit_SSD1306 display(OLED_RESET);
 #define UNIT93 2680
 #define UNIT56 2641
 
-float CODE_VERSION = 1.02;
+float CODE_VERSION = 1.04;
 
 //START TestBed Section - Do not modify
 const bool testbed_readouts = 0;
@@ -71,7 +71,7 @@ uint16_t tics = 0;
 uint16_t rep = 0;
 uint16_t repDone = 0;
 uint16_t repDoneLast = 0;
-uint16_t repDisplay = 0;
+uint16_t repDisplay = 2;
 uint16_t repDisplayLast = 0;
 long displacement = 0;
 long total_displacement = 0;
@@ -95,7 +95,7 @@ unsigned long fiveSec = 5000;
 unsigned long ticDiff = 0;
 const unsigned long backlightTime = 10000;
 int i = 0;
-uint16_t myVelocities[500] = {0};
+unsigned long myDTs[500] = {0};
 uint16_t initialized = 0;
 const int repArrayCount=90;
 float repArray[repArrayCount] = {0};
@@ -113,15 +113,15 @@ uint16_t replast = 0;
 boolean backlightFlag = 1;
 boolean RbuttonDepressed = 0;
 boolean LbuttonDepressed = 0;
-float testVelocity[repArrayCount] = {0};
-float peakVelocity[repArrayCount] = {0};
-float peakAcceleration[repArrayCount] = {0};
+float testVelocity[repArrayCount] = {0.0};
+float peakVelocity[repArrayCount] = {0.0};
+float peakAcceleration[repArrayCount] = {0.0};
 uint16_t dispArray[repArrayCount] = {0};
-float timeArray[repArrayCount] = {0};
-float peakAcc = 0;
-float peakAccFinal = 0;
-float currentInstVel = 0;
-float lastInstVel = 0;
+float timeArray[repArrayCount] = {0.0};
+float peakAcc = 0.0;
+float peakAccFinal = 0.0;
+float currentInstVel = 0.0;
+float lastInstVel = 0.0;
 //unsigned int instVelTimestamps[1000] = {0};
 // Pin 13: Arduino has an LED connected on pin 13
 // Pin 11: Teensy 2.0 has the LED on pin 11
@@ -148,6 +148,7 @@ bool isFlipped = false;
 bool accomplishedDoubleHold = false;
 bool accomplishedSingleHold = false;
 bool flipPowerOlyScreen = false; //0 = Power screen, 1 = Oly screen
+bool sendData = false;
   
 int counter_simplelengthbytic=0;
 int counter_lengthbyticinfunction=0;
@@ -431,7 +432,7 @@ void send_floatList(float *floatList, int len) {
 
 // ********** Function to send bulk velocity data over Bluetooth ********** \\
 
-void send_float_from_intList(uint16_t *intList, uint16_t len) {
+void send_float_from_intList(unsigned long *intList, uint16_t len) {
   for (int i=0; i < len; i++) {
     RFduinoBLE.sendFloat((float) intList[i]);
     RFduino_ULPDelay(17);  // appears to be a number > 1 otherwise the end of long arrays are truncated in the transmission. 17ms seems to be good for 600 floats
@@ -444,16 +445,19 @@ void send_single_float(float singleFloat) {
 } // END send_single_float
 
 void send_all_data() {
-  repPerformance[0] = (float) rep;
-  repPerformance[1] = (float) i;
-  repPerformance[2] = (float) avgVelocity; 
-  repPerformance[3] = (float) repArray[rep]; 
-  repPerformance[4] = (float) total_displacement; 
-  repPerformance[5] = (float) peakVelocity[rep]; 
-  send_floatList(repPerformance, 6);
-  send_single_float(-9876.0);
-  send_float_from_intList(myVelocities, i);
-  send_single_float(-6789.0);            
+	if (sendData) {//only send data if you just registered a new rep
+	  repPerformance[0] = (float) rep;
+	  repPerformance[1] = (float) i;
+	  repPerformance[2] = (float) avgVelocity; 
+	  repPerformance[3] = (float) repArray[rep]; 
+	  repPerformance[4] = (float) total_displacement; 
+	  repPerformance[5] = (float) peakVelocity[rep]; 
+	  send_floatList(repPerformance, 6);
+	  send_single_float(-9876.0);
+	  send_float_from_intList(myDTs, i);
+	  send_single_float(-6789.0);
+	  sendData = false;
+	  }
 } //END send_all_data
 
 // ************************************************************************ \\
@@ -502,22 +506,10 @@ void calcRep(int isGoingUpward, int currentState){
       tic_timestampLast2 = tic_timestampLast;
       tic_timestampLast = tic_timestamp;
       tic_timestamp = micros();
-      //keeping instantaneous velocities for our peak velocity reading
-      //instVelTimestamps[counter_lengthbyticinfunction] = (unsigned int)(tic_timestamp-tic_timestamp_last);
-      ticDiff = tic_timestamp - tic_timestamp_last;
-	  if(ticDiff < minDT){
-        minDT = ticDiff;
-      }
-	  currentInstVel = (float)(ticLength*1000/((long)(minDT)))/1000;
-	  peakAcc = (currentInstVel - lastInstVel)/((float)(ticDiff/1000000));
-	  if(peakAcc > peakAccFinal){
-		 peakAccFinal = peakAcc;
-	  }
-	  lastInstVel = currentInstVel;
-      tic_timestamp_last = tic_timestamp;
+      
       // If you're going upward but you were just going downward, clear your array so you can start a fresh rep
       if (!isGoingUpwardLast){
-        memset(myVelocities,0,sizeof(myVelocities));
+        memset(myDTs,0,sizeof(myDTs));
         //memset(instVelTimestamps,0,sizeof(instVelTimestamps));
         startheight = displacement;
         counter_lengthbyticinfunction=0;
@@ -531,12 +523,26 @@ void calcRep(int isGoingUpward, int currentState){
         minDT = 1000000;
         i = 0;
       }
+	  //keeping instantaneous velocities for our peak velocity reading
+      //instVelTimestamps[counter_lengthbyticinfunction] = (unsigned int)(tic_timestamp-tic_timestamp_last);
+      ticDiff = tic_timestamp - tic_timestamp_last;
+	  myDTs[i] = ticDiff;
+	  if(ticDiff < minDT){
+        minDT = ticDiff;
+      }
+	  currentInstVel = (float)(ticLength*1000/((long)(minDT)))/1000;
+	  peakAcc = (currentInstVel - lastInstVel)/(((float)(ticDiff))/1000000);
+	  if(peakAcc > peakAccFinal){
+		 peakAccFinal = peakAcc;
+	  }
+	  lastInstVel = currentInstVel;
+      tic_timestamp_last = tic_timestamp;
       // This records a value every 20ms
       if (tic_time - tic_time2 > 20000){
         denom = (long)(tic_time - tic_time2);
         //displacement is in micrometers, denom is in microseconds, so instvel is in m/s.
         instvel = ((displacement - lastDisplacement)*1000)/denom;
-        myVelocities[i] = (int)instvel;
+        sumVelocities += (long)instvel;
         tic_time2 = tic_time;
         lastDisplacement = displacement;
         i += 1;
@@ -546,10 +552,6 @@ void calcRep(int isGoingUpward, int currentState){
       // Do your math, check if it fits the rep criteria, and store it in an array.
       if (isGoingUpwardLast && rep<=repArrayCount){
         if ((displacement - startheight) > 150000){ //JDL TEST - REMOVED 0
-          
-          for (int count = 0; count <= i; count++){
-            sumVelocities = sumVelocities + (long)myVelocities[count];
-          }
           
           avgVelocity = sumVelocities/(long)i; 
           total_displacement = displacement - startheight;
@@ -565,10 +567,7 @@ void calcRep(int isGoingUpward, int currentState){
           minTimer = millis();
           minTimer2 = millis();
 		  restTime = 0;
-          //bluetooth broadcast Elliot addition
-          if (bluetoothOn) { //probably not needed anymore since BT is always on
-            send_all_data();
-          }
+
           
         } else { 
           rep -= 1;
@@ -607,6 +606,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 	systemTrayDisplay();
 	display.display();
 	}
+	sendData = true;
   }
   
   //register a button press on the release of the right button
@@ -775,7 +775,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 	  
       memset(repArray,0,sizeof(repArray));
       memset(testVelocity,0,sizeof(testVelocity));
-      memset(myVelocities,0,sizeof(myVelocities));
+      memset(myDTs,0,sizeof(myDTs));
       memset(dispArray,0,sizeof(dispArray));
       memset(timeArray,0,sizeof(timeArray));
       memset(peakVelocity,0,sizeof(peakVelocity));
@@ -815,6 +815,9 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 
 		  systemTrayDisplay();
 		  display.display();         //end nate add
+		  
+          send_all_data(); //moved send_all_data here so it doesn't lag the display
+		  
 	    } else {
 		  display.clearDisplay(); //nate add
 		  display.setTextSize(1);
@@ -846,6 +849,8 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 
 		  systemTrayDisplay();
 		  display.display();         //end nate add
+		  
+		  send_all_data(); //moved send_all_data here so it doesn't lag the display
 	    }
     }
     repDoneLast = repDone;
