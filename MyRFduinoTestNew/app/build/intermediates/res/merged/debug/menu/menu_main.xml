@@ -1,0 +1,11 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.garrett.myrfduinotest.MainActivity">
+    <item
+        android:id="@+id/action_settings"
+        android:orderInCategory="100"
+        android:title="MyRduinoTest"
+        app:showAsAction="never" />
+</menu>
+<!-- From: file:/C:/Users/elliotnoma/AndroidstudioProjects/MyRFduinoTest/app/src/main/res/menu/menu_main.xml -->
