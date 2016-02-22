@@ -156,8 +156,22 @@ bool initialized = false;
 bool flippedDirection = false;
 bool normalDirection = false;
   
-int counter_simplelengthbytic=0;
-int counter_lengthbyticinfunction=0;
+int counter_simplelengthbytic=0;		//This is a simple counter that is called to count how many times we enter the interrupt
+int counter_lengthbyticinfunction=0; 	//This is a simple counter to see how many times we enter the incrementing function
+
+unsigned long micros_holder=0;	//This is a temporary holder used so we don't have to keep calling micros()
+
+// 		"Min" detectable speed = .01 m/s = 10 mm/s
+// 		"Min" tick length = ~2.6 mm
+// 		"Min" ticks/second = (min detectable speed)/(min tick length) = (10 mm/s)/(2.6 mm/tick) = ~3.8462 ticks/second
+// 		"Max" time between ticks = (1 tick)/(min ticks/second)=(1)/(~3.8462 ticks/second) = .26 sec = 260000 microseconds = max_tick_time_allowable
+const unsigned long  max_tick_time_allowable = 260000;		// max_tick_time_allowable is a variable that is used to determine if the the rep "started" but really it's just pausing - see above for math used to derive number
+
+unsigned long time_waiting = 0; // Once we determine that the user is pausing during a rep we start to increment a waiting timer to subtract from the overall time
+
+//		Starting threshold = first ~8 inches
+//		starting threshold in ticks = (starting threshold)*(25.4 mm/in)/(min tick length) = (8)*(25.4)/(2.6)
+const int wait_time_distance_min_in_ticks = 78;
 
 int encoderState(uint32_t ulPin)
 {
@@ -524,6 +538,15 @@ void calcRep(bool isGoingUpward, int currentState){
     if (isGoingUpward){
       displacement += ticLength;
       counter_lengthbyticinfunction++;
+	  
+
+	  
+	  micros_holder = micros();
+	  
+	  if(counter_simplelengthbytic<wait_time_distance_min_in_ticks && (micros_holder-tic_timestamp)>max_tick_time_allowable){
+		time_waiting = time_waiting + micros_holder-tic_timestamp;
+	  }
+	  
       tic_timestampLast2 = tic_timestampLast;
       tic_timestampLast = tic_timestamp;
       tic_timestamp = micros();
@@ -535,6 +558,7 @@ void calcRep(bool isGoingUpward, int currentState){
         //memset(instVelTimestamps,0,sizeof(instVelTimestamps));
         startheight = displacement;
         counter_lengthbyticinfunction=0;
+		time_waiting=0;
         counter_simplelengthbytic=0;
         starttime = tic_timestamp;
 		send_floatList(startMessage, 1);
@@ -581,7 +605,7 @@ void calcRep(bool isGoingUpward, int currentState){
           
           avgVelocity = sumVelocities/(long)global_counter_i; 
           total_displacement = displacement - startheight;
-          total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2);
+          total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2) - time_waiting;
           dispArray[rep] = total_displacement/1000;
           timeArray[rep] = (float)total_time/1000000;
           testVelocity[rep] = (float)((total_displacement)*1000/((long)(total_time)))/1000;
@@ -837,9 +861,14 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 
 			if(testbed_readouts){
 				display.setTextSize(1);
-				display.setCursor(100,22);
+				display.setCursor(90,12);
+				display.print("*");
+				display.print((((float)counter_simplelengthbytic*(float)ticLength)/(float)(total_time/1000))/1000);
+				display.setCursor(90,22);
+				display.print("*");
 				display.print(counter_simplelengthbytic);
-				display.setCursor(80,32);
+				display.setCursor(90,32);
+				display.print("*");
 				display.print(total_time/1000);
 			}
 
