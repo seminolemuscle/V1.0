@@ -87,11 +87,11 @@ unsigned long tic_time2 = 0;
 unsigned long displayTime = 0;
 unsigned long batteryTime = 0;
 unsigned long minTimer = 0;
-unsigned long fiveSecTimer = 0;
+//unsigned long fiveSecTimer = 0; //not being used?
 unsigned long minTimer2 = 0;
-unsigned long fiveSecTimer2 = 0;
+unsigned long twoSecTimer2 = 0;
 unsigned long oneMinute = 60000;
-unsigned long fiveSec = 5000;
+unsigned long twoSec = 2000;
 unsigned long ticDiff = 0;
 const unsigned long backlightTime = 10000;
 int i = 0;
@@ -219,25 +219,25 @@ void setup() {
   display.display();
   
   RFduino_ULPDelay(SECONDS(2));
-
+/*
   display.clearDisplay();
   display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(0,15);
   display.println("Begin Set!");
-  
+  */
   charge = fuelGauge.stateOfCharge();
 	if(charge>100){
 		charge=100;
 	} else if (charge<=0){
 		charge=1;
-	}
+	}/*
   systemTrayDisplay();
   display.setTextColor(WHITE,BLACK);
   display.setTextSize(1);
   display.setCursor(0,0);
   display.print("Rep#:1 ");
-  display.display();
+  display.display();*/
 }
 
 // ******************************************************************** \\
@@ -305,9 +305,9 @@ void minuteTimer(){
 
 void LEDBlink(){
 	//if it's been 5 seconds, enter the statement. If the second timer is true, it won't be during the next loop so the first timer can't trip more than once.
-  if(((millis()%fiveSec) < 20)&&(!goingUpward)){
-	if((millis()-fiveSecTimer2)>30){
-	  fiveSecTimer2 = millis();
+  if(((millis()%twoSec) < 20)&&(!goingUpward)){
+	if((millis()-twoSecTimer2)>30){
+	  twoSecTimer2 = millis();
 	  
 	  digitalWrite(pin_led,HIGH);
 	  RFduino_ULPDelay(20);
@@ -353,8 +353,8 @@ void initializeBluetooth(){
 	displayTime = millis();
 	minTimer = millis();
 	minTimer2 = millis();
-	fiveSecTimer = millis();
-	fiveSecTimer2 = millis();
+	//fiveSecTimer = millis(); //not being used?
+	twoSecTimer2 = millis();
   //}
 }
 
@@ -574,7 +574,6 @@ void calcRep(int isGoingUpward, int currentState){
           minTimer2 = millis();
 		  restTime = 0;
 
-          
         } else { 
           rep -= 1;
         }
