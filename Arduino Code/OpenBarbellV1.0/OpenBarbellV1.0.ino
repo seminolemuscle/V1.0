@@ -60,9 +60,11 @@ const int pin_encoder_tach = 4;
 const unsigned long batteryCheckTime = 10000000;     //The amount of time between battery checks. 10 sec
 const long ticLength = UNIT63; //in micrometers
 volatile int state = LOW;
-volatile int goingUpward = HIGH;
-uint16_t isGoingUpwardLast = 0;
-uint16_t currentStateTemp = 0;
+//state flips on startup, so we need to put the temp value at HIGH so we don't run through the 
+//code one time at startup before getting an actual tic reading
+volatile int currentStateTemp = HIGH;
+volatile bool goingUpward = 0;
+volatile bool isGoingUpwardLast = 0;
 long startheight = 0;
 long sumVelocities = 0;
 long avgVelocity = 0;
@@ -95,8 +97,7 @@ unsigned long twoSec = 2000;
 unsigned long ticDiff = 0;
 const unsigned long backlightTime = 10000;
 int global_counter_i = 0;
-unsigned long myDTs[500] = {0};
-uint16_t initialized = 0;
+uint16_t myDTs[500] = {0};
 const int repArrayCount=90;
 float repArray[repArrayCount] = {0.0};
 uint16_t buttonStateRight = 0; // variable for reading the pushbutton status
@@ -146,10 +147,14 @@ bool buttonRightLongPress=0;
 bool buttonLeftLongPress=0;
 bool bothbuttonlong=0;
 bool isFlipped = false;
+bool LEDInit = true;
 bool accomplishedDoubleHold = false;
 bool accomplishedSingleHold = false;
 bool flipPowerOlyScreen = false; //0 = Power screen, 1 = Oly screen
 bool sendData = false;
+bool initialized = false;
+bool flippedDirection = false;
+bool normalDirection = false;
   
 int counter_simplelengthbytic=0;
 int counter_lengthbyticinfunction=0;
@@ -219,25 +224,13 @@ void setup() {
   display.display();
   
   RFduino_ULPDelay(SECONDS(2));
-/*
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setTextColor(WHITE);
-  display.setCursor(0,15);
-  display.println("Begin Set!");
-  */
+
   charge = fuelGauge.stateOfCharge();
 	if(charge>100){
 		charge=100;
 	} else if (charge<=0){
 		charge=1;
-	}/*
-  systemTrayDisplay();
-  display.setTextColor(WHITE,BLACK);
-  display.setTextSize(1);
-  display.setCursor(0,0);
-  display.print("Rep#:1 ");
-  display.display();*/
+	}
 }
 
 // ******************************************************************** \\
@@ -251,8 +244,7 @@ void setup() {
 // ****************************************************************************************** \\
 
 void loop() {
-  
-  goingUpward = (isFlipped)?(digitalRead(pin_encoder_dir)):(!digitalRead(pin_encoder_dir));
+  directionCalc();
   calcRep(goingUpward, state);
   buttonStateCalc(buttonStateRight, buttonStateLeft);
   minuteTimer();
@@ -263,6 +255,25 @@ void loop() {
 
 // ****************************************************************************************** \\
 // ****************************************************************************************** \\
+
+
+
+
+
+
+// ********** Function to calculate direction ********** \\
+
+void directionCalc(){
+//define flipped direction (direction when you use your device upside-down)
+	flippedDirection = digitalRead(pin_encoder_dir);
+//normal direction is usually directly read from the encoder, but the encoder initializes giving us the 'up'
+//direction (pin value zero). We need the intial reading to tell us 'down', because that's what it always is
+//when the string is retracted into the device. So if we haven't read any tics yet, set normalDirection to zero
+	normalDirection = (!initialized)?(0):(!flippedDirection);
+	goingUpward = (isFlipped)?(flippedDirection):(normalDirection);
+}
+
+// ***************************************************** \\
 
 
 
@@ -305,7 +316,7 @@ void minuteTimer(){
 
 void LEDBlink(){
 	//if it's been 5 seconds, enter the statement. If the second timer is true, it won't be during the next loop so the first timer can't trip more than once.
-  if(((millis()%twoSec) < 20)&&(!goingUpward)){
+  if(((millis()%twoSec) < 20)&&((!goingUpward)||(LEDInit))){
 	if((millis()-twoSecTimer2)>30){
 	  twoSecTimer2 = millis();
 	  digitalWrite(pin_led,HIGH);
@@ -432,12 +443,18 @@ void send_floatList(float *floatList, int len) {
 
 // ********** Function to send bulk velocity data over Bluetooth ********** \\
 
-void send_float_from_intList(unsigned long *intList, uint16_t len) {
+void send_float_from_intList(uint16_t *intList, uint16_t len) {
   for (int i=0; i < len; i++) {
     RFduinoBLE.sendFloat((float) intList[i]);
 	RFduino_ULPDelay(1);  // appears to be a number > 1 otherwise the end of long arrays are truncated in the transmission. 17ms seems to be good for 600 floats
   }
   
+} // END send_float_from_intList
+
+void send_float_from_intListTest(uint16_t *intList, uint16_t len) {
+  for(int i=0; i<len; i++){
+	while (!RFduinoBLE.sendFloat((float)intList[i]));
+  }
 } // END send_float_from_intList
 
 void send_single_float(float singleFloat) {
@@ -456,7 +473,7 @@ void send_all_data() {
 	  repPerformance[5] = (float) peakVelocity[rep]; 
 	  send_floatList(repPerformance, 6);
 	  send_single_float(-9876.0);
-	  send_float_from_intList(myDTs, global_counter_i);
+	  send_float_from_intListTest(myDTs, (myDTCounter/2));
 	  send_single_float(-6789.0);
 	  sendData = false;
 	  }
@@ -496,9 +513,11 @@ void systemTrayDisplay(){
 
 // ********** Function that deals with incoming tics. It puts them in different categories based on certain criteria. ********** \\
 
-void calcRep(int isGoingUpward, int currentState){
+void calcRep(bool isGoingUpward, int currentState){
   if (currentState != currentStateTemp) { //First thing we do is make sure that you are not accessing the function unless the state has changed since the last iteration
     long denom = 0; 
+	//we consider initialization after we record our first tic.
+	initialized = 1;
     //Since you just found a rising edge, take down the time
     tic_time = micros();
     //increment or decrement the distance by one tic length, depending on direction
@@ -508,6 +527,7 @@ void calcRep(int isGoingUpward, int currentState){
       tic_timestampLast2 = tic_timestampLast;
       tic_timestampLast = tic_timestamp;
       tic_timestamp = micros();
+
       
       // If you're going upward but you were just going downward, clear your array so you can start a fresh rep
       if (!isGoingUpwardLast){
@@ -530,7 +550,7 @@ void calcRep(int isGoingUpward, int currentState){
       //instVelTimestamps[counter_lengthbyticinfunction] = (unsigned int)(tic_timestamp-tic_timestamp_last);
       ticDiff = tic_timestamp - tic_timestamp_last;
 	  if(!(myDTCounter%2)){
-		myDTs[(myDTCounter/2)] = ticDiff;
+		myDTs[(myDTCounter/2)] = (uint16_t)(ticDiff/100);
 	  }
 	  myDTCounter++;
 	  if(ticDiff < minDT){
@@ -556,7 +576,7 @@ void calcRep(int isGoingUpward, int currentState){
     } else {
       // If you're going downward, and you were just going upward, you potentially just finished a rep. 
       // Do your math, check if it fits the rep criteria, and store it in an array.
-      if (isGoingUpwardLast && rep<=repArrayCount){
+	  if (isGoingUpwardLast && rep<=repArrayCount){
         if ((displacement - startheight) > 150000){ //JDL TEST - REMOVED 0
           
           avgVelocity = sumVelocities/(long)global_counter_i; 
@@ -578,6 +598,8 @@ void calcRep(int isGoingUpward, int currentState){
           rep -= 1;
         }
       }
+	  //Fixes the LED disabled on startup bug
+	  LEDInit = false;
       displacement -= ticLength;
     }
       
@@ -804,6 +826,8 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.print("Peak Vel:");
 		  display.setCursor(0,51);
 		  display.print(peakVelocity[repDisplay]);
+		  //display.print(myDTs[10]);
+		  //display.print(myDTCounter/2);
 		  display.print("m/s");
 		  display.setCursor(82,42);
 		  display.print("ROM:");
