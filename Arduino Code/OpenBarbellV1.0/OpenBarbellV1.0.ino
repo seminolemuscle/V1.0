@@ -94,7 +94,7 @@ unsigned long oneMinute = 60000;
 unsigned long twoSec = 2000;
 unsigned long ticDiff = 0;
 const unsigned long backlightTime = 10000;
-int i = 0;
+int global_counter_i = 0;
 unsigned long myDTs[500] = {0};
 uint16_t initialized = 0;
 const int repArrayCount=90;
@@ -308,7 +308,6 @@ void LEDBlink(){
   if(((millis()%twoSec) < 20)&&(!goingUpward)){
 	if((millis()-twoSecTimer2)>30){
 	  twoSecTimer2 = millis();
-	  
 	  digitalWrite(pin_led,HIGH);
 	  RFduino_ULPDelay(20);
 	  digitalWrite(pin_led,LOW);
@@ -446,17 +445,18 @@ void send_single_float(float singleFloat) {
     RFduino_ULPDelay(1);
 } // END send_single_float
 
+
 void send_all_data() {
 	if (sendData) {//only send data if you just registered a new rep
 	  repPerformance[0] = (float) rep;
-	  repPerformance[1] = (float) i;
+	  repPerformance[1] = (float) global_counter_i;
 	  repPerformance[2] = (float) avgVelocity; 
 	  repPerformance[3] = (float) repArray[rep]; 
 	  repPerformance[4] = (float) total_displacement; 
 	  repPerformance[5] = (float) peakVelocity[rep]; 
 	  send_floatList(repPerformance, 6);
 	  send_single_float(-9876.0);
-	  send_float_from_intList(myDTs, i);
+	  send_float_from_intList(myDTs, global_counter_i);
 	  send_single_float(-6789.0);
 	  sendData = false;
 	  }
@@ -523,7 +523,7 @@ void calcRep(int isGoingUpward, int currentState){
         lastDisplacement = startheight;
         tic_time2 = micros();
         minDT = 1000000;
-        i = 0;
+        global_counter_i = 0;
 		myDTCounter = 0;
       }
 	  //keeping instantaneous velocities for our peak velocity reading
@@ -551,7 +551,7 @@ void calcRep(int isGoingUpward, int currentState){
         sumVelocities += (long)instvel;
         tic_time2 = tic_time;
         lastDisplacement = displacement;
-        i += 1;
+        global_counter_i += 1;
       } 
     } else {
       // If you're going downward, and you were just going upward, you potentially just finished a rep. 
@@ -559,7 +559,7 @@ void calcRep(int isGoingUpward, int currentState){
       if (isGoingUpwardLast && rep<=repArrayCount){
         if ((displacement - startheight) > 150000){ //JDL TEST - REMOVED 0
           
-          avgVelocity = sumVelocities/(long)i; 
+          avgVelocity = sumVelocities/(long)global_counter_i; 
           total_displacement = displacement - startheight;
           total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2);
           dispArray[rep] = total_displacement/1000;
@@ -785,7 +785,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       memset(timeArray,0,sizeof(timeArray));
       memset(peakVelocity,0,sizeof(peakVelocity));
       //memset(instVelTimestamps,0,sizeof(instVelTimestamps));
-      i = 0;
+      global_counter_i = 0;
       myDTCounter = 0;
     } else {
 		if(!flipPowerOlyScreen){
@@ -845,14 +845,6 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.print("Peak Acc:");
 		  display.setCursor(77,51);
 		  display.print(peakAcceleration[repDisplay]);
-		  //display.setTextSize(2);
-		  /*  display.setCursor(80,6);  //JDLTEST
-			display.print(counter_simplelengthbytic); //JDLTEST
-			display.print(counter_lengthbyticinfunction);
-			counter_simplelengthbytic=0; //JDLTEST
-			counter_lengthbyticinfunction=0;
-			*/
-
 		  systemTrayDisplay();
 		  display.display();         //end nate add
 		  
