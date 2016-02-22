@@ -18,4 +18,4 @@
 <ImageView xmlns:android="http://schemas.android.com/apk/res/android"
            android:layout_width="24dp"
            android:layout_height="24dp"
-           android:scaleType="centerInside"/><!-- From: file:/usr/local/google/buildbot/src/googleplex-android/mnc-supportlib-release/frameworks/support/design/res/layout/design_layout_tab_icon.xml --><!-- From: file:/C:/Users/elliotnoma/AndroidstudioProjects/MyRFduinoTest/app/build/intermediates/exploded-aar/com.android.support/design/23.1.1/res/layout/design_layout_tab_icon.xml -->
+           android:scaleType="centerInside"/><!-- From: file:/usr/local/google/buildbot/src/googleplex-android/mnc-supportlib-release/frameworks/support/design/res/layout/design_layout_tab_icon.xml --><!-- From: file:/C:/Users/elliotnoma/Documents/GitHub/V1.0/MyRFduinoTestNew/app/build/intermediates/exploded-aar/com.android.support/design/23.1.1/res/layout/design_layout_tab_icon.xml -->

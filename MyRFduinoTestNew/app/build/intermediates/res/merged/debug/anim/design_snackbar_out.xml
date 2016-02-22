@@ -17,4 +17,4 @@
 
 <translate xmlns:android="http://schemas.android.com/apk/res/android"
            android:fromYDelta="0"
-           android:toYDelta="100%"/><!-- From: file:/usr/local/google/buildbot/src/googleplex-android/mnc-supportlib-release/frameworks/support/design/res/anim/design_snackbar_out.xml --><!-- From: file:/C:/Users/elliotnoma/AndroidstudioProjects/MyRFduinoTest/app/build/intermediates/exploded-aar/com.android.support/design/23.1.1/res/anim/design_snackbar_out.xml -->
+           android:toYDelta="100%"/><!-- From: file:/usr/local/google/buildbot/src/googleplex-android/mnc-supportlib-release/frameworks/support/design/res/anim/design_snackbar_out.xml --><!-- From: file:/C:/Users/elliotnoma/Documents/GitHub/V1.0/MyRFduinoTestNew/app/build/intermediates/exploded-aar/com.android.support/design/23.1.1/res/anim/design_snackbar_out.xml -->

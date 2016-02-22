@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- From: file:/C:/Users/elliotnoma/AndroidstudioProjects/MyRFduinoTest/app/build/intermediates/exploded-aar/com.android.support/design/23.1.1/res/values-v21/values-v21.xml -->
+    <!-- From: file:/C:/Users/elliotnoma/Documents/GitHub/V1.0/MyRFduinoTestNew/app/build/intermediates/exploded-aar/com.android.support/design/23.1.1/res/values-v21/values-v21.xml -->
     <eat-comment/>
     <dimen name="design_navigation_padding_top_default">24dp</dimen>
-    <!-- From: file:/C:/Users/elliotnoma/AndroidstudioProjects/MyRFduinoTest/app/src/main/res/values-v21/styles.xml -->
+    <!-- From: file:/C:/Users/elliotnoma/Documents/GitHub/V1.0/MyRFduinoTestNew/app/src/main/res/values-v21/styles.xml -->
     <eat-comment/>
     <style name="AppTheme.NoActionBar">
         <item name="windowActionBar">false</item>
@@ -11,7 +11,7 @@
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
     </style>
-    <!-- From: file:/C:/Users/elliotnoma/AndroidstudioProjects/MyRFduinoTest/app/build/intermediates/exploded-aar/com.android.support/appcompat-v7/23.1.1/res/values-v21/values-v21.xml -->
+    <!-- From: file:/C:/Users/elliotnoma/Documents/GitHub/V1.0/MyRFduinoTestNew/app/build/intermediates/exploded-aar/com.android.support/appcompat-v7/23.1.1/res/values-v21/values-v21.xml -->
     <eat-comment/>
     <style name="Base.TextAppearance.AppCompat" parent="android:TextAppearance.Material"/>
     <style name="Base.TextAppearance.AppCompat.Body1" parent="android:TextAppearance.Material.Body1"/>
