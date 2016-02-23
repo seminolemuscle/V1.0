@@ -37,14 +37,20 @@ Adafruit_SSD1306 display(OLED_RESET);
 #define DELTAY 2
 #define LOGO16_GLCD_HEIGHT 16 
 #define LOGO16_GLCD_WIDTH  16 
-#define UNIT63 2644
-#define UNIT93 2680
-#define UNIT56 2641
+
+
+/***********START DEVICE SPECIFIC INFO ***************/
+
+//Scheme "OB XXX" where XXX is the serial number
+const char *device_name = "OB 69";
+const long ticLength = 2623;
+
+/***********END DEVICE SPECIFIC INFO ***************/
 
 float CODE_VERSION = 1.04;
 
 //START TestBed Section - Do not modify
-const bool testbed_readouts = 1;
+const bool testbed_readouts = 0;
 //END TestBed Section
 
 boolean bluetoothOn = false;  // Elliot addition
@@ -58,26 +64,23 @@ const int pin_encoder_dir = 3;
 const int pin_encoder_tach = 4;
 
 const unsigned long batteryCheckTime = 10000000;     //The amount of time between battery checks. 10 sec
-const long ticLength = UNIT63; //in micrometers
+ //in micrometers
 volatile int state = LOW;
 //state flips on startup, so we need to put the temp value at HIGH so we don't run through the 
 //code one time at startup before getting an actual tic reading
 volatile int currentStateTemp = HIGH;
 volatile bool goingUpward = 0;
 volatile bool isGoingUpwardLast = 0;
-long startheight = 0;
-long sumVelocities = 0;
 long avgVelocity = 0;
 unsigned long starttime = 0;
-uint16_t tics = 0;
+
 uint16_t rep = 0;
 uint16_t repDone = 0;
 uint16_t repDoneLast = 0;
 uint16_t repDisplay = 2;
 uint16_t repDisplayLast = 0;
 long displacement = 0;
-long total_displacement = 0;
-long lastDisplacement = 0;
+
 unsigned long tic_time = 0;
 unsigned long tic_timestamp = 0;
 unsigned long tic_timestampLast = 0;
@@ -85,7 +88,7 @@ unsigned long tic_timestampLast2 = 0;
 unsigned long tic_timestamp_last = 0;
 unsigned long minDT = 1000000;
 unsigned long total_time = 0;
-unsigned long tic_time2 = 0;
+
 unsigned long displayTime = 0;
 unsigned long batteryTime = 0;
 unsigned long minTimer = 0;
@@ -96,10 +99,16 @@ unsigned long oneMinute = 60000;
 unsigned long twoSec = 2000;
 unsigned long ticDiff = 0;
 const unsigned long backlightTime = 10000;
-int global_counter_i = 0;
+
 uint16_t myDTs[500] = {0};
-const int repArrayCount=90;
-//float repArray[repArrayCount] = {0.0};
+const int repArrayCount=150;
+float repArray[repArrayCount] = {0.0};
+float peakVelocity[repArrayCount] = {0.0};
+float peakAcceleration[repArrayCount] = {0.0};
+uint16_t dispArray[repArrayCount] = {0};
+float timeArray[repArrayCount] = {0.0};
+
+
 uint16_t buttonStateRight = 0; // variable for reading the pushbutton status
 uint16_t buttonStateLeft = 0; // variable for reading the pushbutton status
 uint16_t buttonstateRtemp = 0;
@@ -114,11 +123,7 @@ uint16_t replast = 0;
 boolean backlightFlag = 1;
 boolean RbuttonDepressed = 0;
 boolean LbuttonDepressed = 0;
-float testVelocity[repArrayCount] = {0.0};
-float peakVelocity[repArrayCount] = {0.0};
-float peakAcceleration[repArrayCount] = {0.0};
-uint16_t dispArray[repArrayCount] = {0};
-float timeArray[repArrayCount] = {0.0};
+
 float peakAcc = 0.0;
 float peakAccFinal = 0.0;
 float currentInstVel = 0.0;
@@ -131,7 +136,7 @@ int buttonstate = 0;
 static unsigned long last_interrupt_time = 0;
 static unsigned long last_interrupt_time2 = 0;
 static unsigned long last_tic_time = 0;
-long instvel = 0;
+
 uint16_t flipLED = 0;
 uint16_t charge = 50;
 uint16_t restTime = 0;
@@ -143,7 +148,7 @@ const int threshold_buttonhold=100; //cycles of buttonholdtimer to cross thresho
 const int buttonholdtimer=10;  //delay time
 int counter_buttonRighthold=0;
 int counter_buttonLefthold=0;
-int minRepThreshold=150000;
+int minRepThreshold=150000;		//in micrometers - 150000 micrometers = 150 mm = ~5.9 inches
 bool buttonRightLongPress=0;
 bool buttonLeftLongPress=0;
 bool bothbuttonlong=0;
@@ -157,8 +162,7 @@ bool initialized = false;
 bool flippedDirection = false;
 bool normalDirection = false;
   
-int counter_simplelengthbytic=0;		//This is a simple counter that is called to count how many times we enter the interrupt
-int counter_lengthbyticinfunction=0; 	//This is a simple counter to see how many times we enter the incrementing function
+unsigned int counter_simplelengthbytic=0;		//This is a simple counter that is called to count how many times we enter the interrupt
 
 unsigned long micros_holder=0;	//This is a temporary holder used so we don't have to keep calling micros()
 
@@ -170,22 +174,18 @@ const unsigned long  max_tick_time_allowable = 260000;		// max_tick_time_allowab
 
 unsigned long time_waiting = 0; // Once we determine that the user is pausing during a rep we start to increment a waiting timer to subtract from the overall time
 
-//		Starting threshold = first ~8 inches
-//		starting threshold in ticks = (starting threshold)*(25.4 mm/in)/(min tick length) = (8)*(25.4)/(2.6)
-const int wait_time_distance_min_in_ticks = 78;
+//		Starting threshold = first ~6 inches
+//		starting threshold in ticks = (starting threshold)*(25.4 mm/in)/(min tick length) = (6)*(25.4)/(2.6)
+const int wait_time_distance_min_in_ticks = 58;
 
 int encoderState(uint32_t ulPin)
 {
-  //unsigned long interrupt_time = micros();
-  //max tach pulse width is 20 micros. Double that to be safe. Min is 3. Info starts to deteriorate at less than 12 micros
-  //We could just use "RISING" for interrupt handler, since a tach pulse happens every time the encoder state changes.
-  //if (interrupt_time - last_interrupt_time >40)
-  //{
   state = !state;
-  counter_simplelengthbytic++;
-    //Serial.println(state);
-    //}
-  //last_interrupt_time = interrupt_time;
+  
+  if(goingUpward){	//This if statement keeps the counter from counting on downward movements
+	counter_simplelengthbytic++;	//This is the counter that counts the number of encoder wheel transitions in the interrupt
+  }
+
   return 0;
 }
 
@@ -196,11 +196,14 @@ MAX1704 fuelGauge;
 
 
 
+
 // ********** Primary setup. Only to be run once on startup. ********** \\
 
 void setup() {  
+
+
   RFduinoBLE.txPowerLevel = +4;
-  RFduinoBLE.deviceName = "OpenBarbell";
+  RFduinoBLE.deviceName = device_name;
   RFduinoBLE.advertisementData = "OBBT";
   initializeBluetooth();
   Wire.begin();
@@ -225,7 +228,7 @@ void setup() {
   fuelGauge.quickStart();
   fuelGauge.showConfig();
 
-  //Welcome Screen
+  //Welcome Screen - Custom Screen requires custom libraries
   display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(68,5);
@@ -238,7 +241,7 @@ void setup() {
   display.print("Rev:");
   display.print(CODE_VERSION);
   display.display();
-  RFduino_ULPDelay(SECONDS(2));
+  RFduino_ULPDelay(2000);
 
   charge = fuelGauge.stateOfCharge();
 	if(charge>100){
@@ -346,7 +349,7 @@ void minuteTimer(){
 
 
 
-// ********** Function to blink LED every 5 seconds, if there's nothing going on ********** \\
+// ********** Function to blink LED every XX seconds, if there's nothing going on ********** \\
 
 void LEDBlink(){
 	//if it's been 5 seconds, enter the statement. If the second timer is true, it won't be during the next loop so the first timer can't trip more than once.
@@ -523,18 +526,33 @@ void send_floatList(float *floatList, int len) {
 
 // ********** Function to send bulk velocity data over Bluetooth ********** \\
 
-void send_float_from_intList(uint16_t *intList, uint16_t len) {
-  for (int i=0; i < len; i++) {
-    while (!RFduinoBLE.sendFloat((float) intList[i]));
-}
-  
-} // END send_float_from_intList
 
-void send_float_from_intListTest(uint16_t *intList, uint16_t len) {
-  for(int i=0; i<len; i++){
-	while (!RFduinoBLE.sendFloat((float)intList[i]));
+// In order to save on transmission time the uint16s will be combined together (when possible).
+// The uint16_t are being combined like so... eg if we had an array foo where foo[0] = 16 and foo[1] = 23
+// the numbers would be sent over as foo[0].(foo[1]/10000) or 16.0023.
+// HOWEVER - The floats that are being sent can display up to 8 characters eg. 1234.5678 or 123456.78
+// it is therefore necessary to make sure that the values being sent over are not over 10,000 or
+// they will be truncated - Thus we check to make sure that the values aren't over 10,000 before combining
+// since we are combining every two values, if the list has an odd number of values we need to send the last one
+
+void send_float_from_intList(uint16_t *intList, uint16_t len) {
+  for(int i=0; i<(len-1); i=i+2){
+	if((intList[i]-10000)<0 && (intList[i+1]-10000)<0){	//Check to see if there will be a value that may be truncated
+		while (!RFduinoBLE.sendFloat((float)intList[i]+(float)intList[i+1]/10000));
+	} else {	//If there is a potential for truncation then each number will be sent separate
+		while (!RFduinoBLE.sendFloat((float)intList[i]));
+		while (!RFduinoBLE.sendFloat((float)intList[i+1]));
+	}
+  }
+  
+  if(len%2==1){	//Check if there was an odd number of values
+	while(!RFduinoBLE.sendFloat((float)intList[len]));
   }
 } // END send_float_from_intList
+
+
+// ******************************************** \\
+
 
 void send_single_float(float singleFloat) {
     while (!RFduinoBLE.sendFloat(singleFloat));
@@ -545,14 +563,13 @@ void send_single_float(float singleFloat) {
 void send_all_data() {
 	if (sendData) {//only send data if you just registered a new rep
 	  repPerformance[0] = (float) rep;
-	  repPerformance[1] = (float) global_counter_i;
-	  repPerformance[2] = (float) avgVelocity; 
-	  //repPerformance[3] = (float) repArray[rep]; //JON PUT NEW VELOCITY HERE
-	  repPerformance[4] = (float) total_displacement; 
-	  repPerformance[5] = (float) peakVelocity[rep]; 
-	  send_floatList(repPerformance, 6);
+	  repPerformance[1] = (float) avgVelocity; 
+	  repPerformance[2] = (float) repArray[rep]; //JON PUT NEW VELOCITY HERE
+	  repPerformance[3] = (float) displacement; 
+	  repPerformance[4] = (float) peakVelocity[rep]; 
+	  send_floatList(repPerformance, 5);
 	  send_single_float(-9876.0);
-	  send_float_from_intListTest(myDTs, (myDTCounter/2));
+	  send_float_from_intList(myDTs, (myDTCounter/2));
 	  send_single_float(-6789.0);
 	  sendData = false;
 	  }
@@ -601,12 +618,15 @@ void calcRep(bool isGoingUpward, int currentState){
     tic_time = micros();
     //increment or decrement the distance by one tic length, depending on direction
     if (isGoingUpward){
-      displacement += ticLength;
-      counter_lengthbyticinfunction++;
-	  
-
+      
+	  displacement = counter_simplelengthbytic*ticLength;
 	  
 	  micros_holder = micros();
+	  
+	  
+	  // There was a bug found where it was possible to start going up but then hold a position without going down...this caused the total_time to
+	  // continually increase and throw off the average velocity for the rep - to compensate for this we see how much time someone is waiting and
+	  // subtract that from the total_time
 	  
 	  if(counter_simplelengthbytic<wait_time_distance_min_in_ticks && (micros_holder-tic_timestamp)>max_tick_time_allowable){
 		time_waiting = time_waiting + micros_holder-tic_timestamp;
@@ -614,25 +634,22 @@ void calcRep(bool isGoingUpward, int currentState){
 	  
       tic_timestampLast2 = tic_timestampLast;
       tic_timestampLast = tic_timestamp;
-      tic_timestamp = micros();
+      tic_timestamp = micros_holder;
 
       
       // If you're going upward but you were just going downward, clear your array so you can start a fresh rep
       if (!isGoingUpwardLast){
         memset(myDTs,0,sizeof(myDTs));
         //memset(instVelTimestamps,0,sizeof(instVelTimestamps));
-        startheight = displacement;
-        counter_lengthbyticinfunction=0;
+		
 		time_waiting=0;
         counter_simplelengthbytic=0;
+		
         starttime = tic_timestamp;
 		send_floatList(startMessage, 1);
         rep += 1;
-        sumVelocities = 0;
-        lastDisplacement = startheight;
-        tic_time2 = micros();
+
         minDT = 1000000;
-        global_counter_i = 0;
 		myDTCounter = 0;
       }
 	  //keeping instantaneous velocities for our peak velocity reading
@@ -652,36 +669,27 @@ void calcRep(bool isGoingUpward, int currentState){
 	  }
 	  lastInstVel = currentInstVel;
       tic_timestamp_last = tic_timestamp;
-      // This records a value every 20ms
-      if (tic_time - tic_time2 > 20000){
-        denom = (long)(tic_time - tic_time2);
-        //displacement is in micrometers, denom is in microseconds, so instvel is in m/s.
-        instvel = ((displacement - lastDisplacement)*1000)/denom;
-        sumVelocities += (long)instvel;
-        tic_time2 = tic_time;
-        lastDisplacement = displacement;
-        global_counter_i += 1;
-      } 
+
     } else {
       // If you're going downward, and you were just going upward, you potentially just finished a rep. 
       // Do your math, check if it fits the rep criteria, and store it in an array.
 	  if (isGoingUpwardLast && rep<=repArrayCount){
-        if ((displacement - startheight) > minRepThreshold){ //JDL TEST - REMOVED 0
-          
-          avgVelocity = sumVelocities/(long)global_counter_i; 
-          total_displacement = displacement - startheight;
-          total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2) - time_waiting;
-          dispArray[rep] = total_displacement/1000;
+        if (displacement > minRepThreshold){ 
+         
+		  total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2) - time_waiting;
+          dispArray[rep] = displacement/1000;
           timeArray[rep] = (float)total_time/1000000;
-          testVelocity[rep] = (float)((total_displacement)*1000/((long)(total_time)))/1000;
           peakVelocity[rep] = (float)(ticLength*1000/((long)(minDT)))/1000;
           peakAcceleration[rep] = peakAccFinal;
-          //repArray[rep] = (float)avgVelocity/1000;
-          repDone = rep;
+         
+		 repArray[rep] = ((float)(counter_simplelengthbytic*ticLength)/(float)(total_time/1000))/1000;
+          
+		  repDone = rep;
 		  //resets 60 second rest time counter
           minTimer = millis();
           minTimer2 = millis();
 		  restTime = 0;
+		  counter_simplelengthbytic=0;
 
         } else { 
           rep -= 1;
@@ -865,9 +873,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.display();         //end nate add
 		}
     } else if (repDisplay > (repDone + 1)){
-      startheight = displacement;
       counter_simplelengthbytic=0; //JDLTEST
-      counter_lengthbyticinfunction=0;  //JDLTest
 	  //This line keeps the repDisplay value from getting too big, and causing a bug to miss the first rep (edit: might not be necessary)
 	  //repDisplay = repDone + 2;
       
@@ -875,7 +881,6 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       rep = (goingUpward)?(1):(0);
       repDone = 0;
       repDoneLast = 0;
-      sumVelocities = 0;
 	  
 	  display.clearDisplay(); //nate add
       display.setTextSize(2);
@@ -889,14 +894,12 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       display.display();         //end nate add
 	  RFduino_ULPDelay(1);
 	  
-      //memset(repArray,0,sizeof(repArray));
-      memset(testVelocity,0,sizeof(testVelocity));
+      memset(repArray,0,sizeof(repArray));
       memset(myDTs,0,sizeof(myDTs));
       memset(dispArray,0,sizeof(dispArray));
       memset(timeArray,0,sizeof(timeArray));
       memset(peakVelocity,0,sizeof(peakVelocity));
       //memset(instVelTimestamps,0,sizeof(instVelTimestamps));
-      global_counter_i = 0;
       myDTCounter = 0;
     } else {
 		if(!flipPowerOlyScreen){
@@ -908,7 +911,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.setTextSize(3);
 		  display.setTextColor(WHITE);
 		  display.setCursor(0,19);
-		  //display.print(repArray[repDisplay]); //JON INSERT NEW VELOCITY HERE
+		  display.print(repArray[repDisplay]); //JON INSERT NEW VELOCITY HERE
 		  display.setTextSize(1);
 		  display.print("m/s");
 		  display.setCursor(0,42);
@@ -926,15 +929,11 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 
 			if(testbed_readouts){
 				display.setTextSize(1);
-				display.setCursor(90,12);
-				display.print("*");
-				display.print((((float)counter_simplelengthbytic*(float)ticLength)/(float)(total_time/1000))/1000);
 				display.setCursor(90,22);
+				display.print("*Time");
+				display.setCursor(80,32);
 				display.print("*");
-				display.print(counter_simplelengthbytic);
-				display.setCursor(90,32);
-				display.print("*");
-				display.print(total_time/1000);
+				display.print(timeArray[repDisplay]);
 			}
 
 		  systemTrayDisplay();
