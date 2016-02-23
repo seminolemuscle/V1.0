@@ -44,7 +44,7 @@ Adafruit_SSD1306 display(OLED_RESET);
 float CODE_VERSION = 1.04;
 
 //START TestBed Section - Do not modify
-const bool testbed_readouts = 0;
+const bool testbed_readouts = 1;
 //END TestBed Section
 
 boolean bluetoothOn = false;  // Elliot addition
@@ -143,6 +143,7 @@ const int threshold_buttonhold=100; //cycles of buttonholdtimer to cross thresho
 const int buttonholdtimer=10;  //delay time
 int counter_buttonRighthold=0;
 int counter_buttonLefthold=0;
+int minRepThreshold=150000;
 bool buttonRightLongPress=0;
 bool buttonLeftLongPress=0;
 bool bothbuttonlong=0;
@@ -198,6 +199,7 @@ MAX1704 fuelGauge;
 // ********** Primary setup. Only to be run once on startup. ********** \\
 
 void setup() {  
+  RFduinoBLE.txPowerLevel = +4;
   RFduinoBLE.deviceName = "OpenBarbell";
   RFduinoBLE.advertisementData = "OBBT";
   initializeBluetooth();
@@ -236,7 +238,6 @@ void setup() {
   display.print("Rev:");
   display.print(CODE_VERSION);
   display.display();
-  
   RFduino_ULPDelay(SECONDS(2));
 
   charge = fuelGauge.stateOfCharge();
@@ -271,6 +272,25 @@ void loop() {
 // ****************************************************************************************** \\
 
 
+/*
+
+
+
+// ********** Test function to make sure we're setting BT power correctly ********** \\
+//This doesn't ever exit...
+
+void RFduinoBLE_onRSSI(int rssi){
+	display.setTextColor(WHITE,BLACK);
+	  display.setTextSize(1);
+	  display.setCursor(55,0);
+	  display.print(rssi);
+	  display.print("db");
+	  display.display();
+}
+
+// ********************************************************************************************************** \\
+
+*/
 
 
 
@@ -388,7 +408,7 @@ void initializeBluetooth(){
 
 
 
-
+/*
 // ********** Function that turns off Bluetooth if requested by phone ********** \\
 
 void RFduinoBLE_onReceive(char *data, int len)
@@ -411,6 +431,33 @@ String charToString(char *text, int len)
  String s = "";
  for (int i =0; i < len; i++) s += text[i];
  return s;
+}
+
+// **************************************************************************** \\
+
+*/
+
+
+
+// ********** Function that changes variables when requested by phone ********** \\
+
+void RFduinoBLE_onReceive(char *data, int len)
+{
+// if the first byte is 0x01 / on / true
+  if (data[0]){
+	if(bitRead(data[1],1)){
+		minRepThreshold = data[2]*1000;
+		}
+	if(bitRead(data[1],2)){
+		flipPowerOlyScreen = !flipPowerOlyScreen;
+		}
+	if(bitRead(data[1],3)){
+		isFlipped = !isFlipped;
+		}
+	if(bitRead(data[1],4)){
+		//anything else?
+		}
+    }
 }
 
 // **************************************************************************** \\
@@ -601,7 +648,7 @@ void calcRep(bool isGoingUpward, int currentState){
       // If you're going downward, and you were just going upward, you potentially just finished a rep. 
       // Do your math, check if it fits the rep criteria, and store it in an array.
 	  if (isGoingUpwardLast && rep<=repArrayCount){
-        if ((displacement - startheight) > 150000){ //JDL TEST - REMOVED 0
+        if ((displacement - startheight) > minRepThreshold){ //JDL TEST - REMOVED 0
           
           avgVelocity = sumVelocities/(long)global_counter_i; 
           total_displacement = displacement - startheight;
@@ -752,7 +799,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 			display.setTextSize(3);
 			display.setCursor(0,0);
 			if(flipPowerOlyScreen){
-				display.print("OLY");
+				display.print("OLYMPIC");
 				display.setCursor(0,32);
 				display.print("MODE");
 			}else{
