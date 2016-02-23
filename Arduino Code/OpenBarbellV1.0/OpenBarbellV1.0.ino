@@ -99,7 +99,7 @@ const unsigned long backlightTime = 10000;
 int global_counter_i = 0;
 uint16_t myDTs[500] = {0};
 const int repArrayCount=90;
-float repArray[repArrayCount] = {0.0};
+//float repArray[repArrayCount] = {0.0};
 uint16_t buttonStateRight = 0; // variable for reading the pushbutton status
 uint16_t buttonStateLeft = 0; // variable for reading the pushbutton status
 uint16_t buttonstateRtemp = 0;
@@ -408,6 +408,28 @@ void initializeBluetooth(){
 
 
 
+
+// ********** Function to throw up a splash screen on BT connect ********** \\
+
+void RFduinoBLE_onConnect(){
+	display.clearDisplay();
+	display.setTextSize(2);
+    display.setCursor(0,0);
+	display.print("BLUETOOTH");
+	display.setCursor(0,32);
+	display.print("CONNECTED");
+	display.display();
+	//display.startscrollleft(0x00, 0x0F);
+	RFduino_ULPDelay(SECONDS(2));
+	repDisplay = repDone+1;
+}
+
+// ************************************************************************ \\
+
+
+
+
+
 /*
 // ********** Function that turns off Bluetooth if requested by phone ********** \\
 
@@ -477,21 +499,18 @@ void send_intList_charString(int *intList, int len) {
   int nbytes = intString.length()+1;
   char bytes[nbytes];
   intString.toCharArray(bytes, nbytes);
-  RFduinoBLE.send(bytes, nbytes);
-  RFduino_ULPDelay(5);  
+  while (!RFduinoBLE.send(bytes, nbytes));
 } // END send_intList_charString
 
 void send_intList(int *intList, int len) {
   for (int i=0; i < len; i++) {
-    RFduinoBLE.sendInt(intList[i]);
-    RFduino_ULPDelay(1);
+    while (!RFduinoBLE.sendInt(intList[i]));
   }
 } // END send_intList
 
 void send_floatList(float *floatList, int len) {
   for (int i=0; i < len; i++) {
-    RFduinoBLE.sendFloat(floatList[i]);
-    RFduino_ULPDelay(1);
+    while (!RFduinoBLE.sendFloat(floatList[i]));
   }
 } // END send_floatList
 
@@ -506,9 +525,8 @@ void send_floatList(float *floatList, int len) {
 
 void send_float_from_intList(uint16_t *intList, uint16_t len) {
   for (int i=0; i < len; i++) {
-    RFduinoBLE.sendFloat((float) intList[i]);
-	RFduino_ULPDelay(1);  // appears to be a number > 1 otherwise the end of long arrays are truncated in the transmission. 17ms seems to be good for 600 floats
-  }
+    while (!RFduinoBLE.sendFloat((float) intList[i]));
+}
   
 } // END send_float_from_intList
 
@@ -519,7 +537,7 @@ void send_float_from_intListTest(uint16_t *intList, uint16_t len) {
 } // END send_float_from_intList
 
 void send_single_float(float singleFloat) {
-    RFduinoBLE.sendFloat(singleFloat);
+    while (!RFduinoBLE.sendFloat(singleFloat));
     RFduino_ULPDelay(1);
 } // END send_single_float
 
@@ -529,7 +547,7 @@ void send_all_data() {
 	  repPerformance[0] = (float) rep;
 	  repPerformance[1] = (float) global_counter_i;
 	  repPerformance[2] = (float) avgVelocity; 
-	  repPerformance[3] = (float) repArray[rep]; 
+	  //repPerformance[3] = (float) repArray[rep]; //JON PUT NEW VELOCITY HERE
 	  repPerformance[4] = (float) total_displacement; 
 	  repPerformance[5] = (float) peakVelocity[rep]; 
 	  send_floatList(repPerformance, 6);
@@ -658,7 +676,7 @@ void calcRep(bool isGoingUpward, int currentState){
           testVelocity[rep] = (float)((total_displacement)*1000/((long)(total_time)))/1000;
           peakVelocity[rep] = (float)(ticLength*1000/((long)(minDT)))/1000;
           peakAcceleration[rep] = peakAccFinal;
-          repArray[rep] = (float)avgVelocity/1000;
+          //repArray[rep] = (float)avgVelocity/1000;
           repDone = rep;
 		  //resets 60 second rest time counter
           minTimer = millis();
@@ -871,7 +889,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       display.display();         //end nate add
 	  RFduino_ULPDelay(1);
 	  
-      memset(repArray,0,sizeof(repArray));
+      //memset(repArray,0,sizeof(repArray));
       memset(testVelocity,0,sizeof(testVelocity));
       memset(myDTs,0,sizeof(myDTs));
       memset(dispArray,0,sizeof(dispArray));
@@ -890,7 +908,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.setTextSize(3);
 		  display.setTextColor(WHITE);
 		  display.setCursor(0,19);
-		  display.print(repArray[repDisplay]);
+		  //display.print(repArray[repDisplay]); //JON INSERT NEW VELOCITY HERE
 		  display.setTextSize(1);
 		  display.print("m/s");
 		  display.setCursor(0,42);
