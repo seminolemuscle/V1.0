@@ -282,9 +282,10 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
         } catch (Exception e) {
             e.printStackTrace();
         }
-        Log.d("*** bytes", "received so far = " + (++numberOfBytesReceived));
-        Log.d("***** data length", "byte count = " + data.length);
-        Log.d("**** addData as int new", "" + shortint);  ///////////////
+        ++numberOfBytesReceived;
+//        Log.d("*** bytes", "received so far = " + (++numberOfBytesReceived));
+//        Log.d("***** data length", "byte count = " + data.length + " number ");
+//        Log.d("**** addData as int new", "" + shortint);  ///////////////
 //        View view = getLayoutInflater().inflate(android.R.layout.simple_list_item_2, dataLayout, false);
         View view = getLayoutInflater().inflate(android.R.layout.simple_list_item_1, dataLayout, false);
 
@@ -298,7 +299,8 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
             }
             ByteBuffer buffer = ByteBuffer.wrap(dataRev);
             float second = buffer.getFloat(); //This helps to
-            text1.setText("" + second + " receive count = " +  numberOfBytesReceived);
+            text1.setText("" + second + " count = " +  numberOfBytesReceived);
+            Log.d("***** data length", "" + second + " count = " +  numberOfBytesReceived);
 ////       text1.setText(HexAsciiHelper.bytesToHex(data));
         } else {
             String ascii = HexAsciiHelper.bytesToAsciiMaybe(data);
@@ -307,6 +309,8 @@ public class MainActivity extends Activity implements BluetoothAdapter.LeScanCal
 ////            text2.setText(ascii);
                 text1.setText(ascii);
             }
+            Log.d("*** bytes", "received so far = " + numberOfBytesReceived);
+            Log.d("*********** data length", "byte count = " + data.length + " ascii string =" + ascii);
         }
 
         dataLayout.addView(

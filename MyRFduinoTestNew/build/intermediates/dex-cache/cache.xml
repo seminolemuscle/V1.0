@@ -2,46 +2,46 @@
 <items version="2" >
 
     <item
-        jar="C:\Users\elliotnoma\AndroidstudioProjects\MyRFduinoTest\app\build\intermediates\exploded-aar\com.android.support\appcompat-v7\23.1.1\jars\classes.jar"
-        jumboMode="false"
-        revision="22.0.1"
-        sha1="5c5699834e9722f1c288fea2de82725d078ba127">
-        <dex dex="C:\Users\elliotnoma\AndroidstudioProjects\MyRFduinoTest\app\build\intermediates\pre-dexed\debug\classes-0d55a58d6eba93a9366e39434a7e50a0bf295321.jar" />
-    </item>
-    <item
-        jar="C:\Android\android-sdk\extras\android\m2repository\com\android\support\support-annotations\23.1.1\support-annotations-23.1.1.jar"
-        jumboMode="false"
-        revision="22.0.1"
-        sha1="8d680ba5a623724d1fb0e81c36a790f023a6cede">
-        <dex dex="C:\Users\elliotnoma\AndroidstudioProjects\MyRFduinoTest\app\build\intermediates\pre-dexed\debug\support-annotations-23.1.1-cd60eda5b48a53aa4e2bf0a1a79c87f86b70d6da.jar" />
-    </item>
-    <item
-        jar="C:\Users\elliotnoma\AndroidstudioProjects\MyRFduinoTest\app\build\intermediates\exploded-aar\com.android.support\design\23.1.1\jars\classes.jar"
-        jumboMode="false"
-        revision="22.0.1"
-        sha1="379471b2bd17d9737c050345c08e8c7d16589784">
-        <dex dex="C:\Users\elliotnoma\AndroidstudioProjects\MyRFduinoTest\app\build\intermediates\pre-dexed\debug\classes-daf738d6a7d3b6dcbacfd888b1e1ee3df17033a2.jar" />
-    </item>
-    <item
-        jar="C:\Users\elliotnoma\AndroidstudioProjects\MyRFduinoTest\app\build\intermediates\exploded-aar\com.android.support\support-v4\23.1.1\jars\libs\internal_impl-23.1.1.jar"
+        jar="C:\Users\elliotnoma\Documents\GitHub\V1.0\MyRFduinoTestNew\app\build\intermediates\exploded-aar\com.android.support\support-v4\23.1.1\jars\libs\internal_impl-23.1.1.jar"
         jumboMode="false"
         revision="22.0.1"
         sha1="a4de9c81ae239414e1ed0f86441b02abaf29bca9">
-        <dex dex="C:\Users\elliotnoma\AndroidstudioProjects\MyRFduinoTest\app\build\intermediates\pre-dexed\debug\internal_impl-23.1.1-dc7eb432a39e24db28daa8d702395aef30976f15.jar" />
+        <dex dex="C:\Users\elliotnoma\Documents\GitHub\V1.0\MyRFduinoTestNew\app\build\intermediates\pre-dexed\release\internal_impl-23.1.1-654e06916ed973e46757ab59d39e8f5e4e0cae5a.jar" />
     </item>
     <item
-        jar="C:\Users\elliotnoma\AndroidstudioProjects\MyRFduinoTest\app\build\intermediates\exploded-aar\com.android.support\recyclerview-v7\23.1.1\jars\classes.jar"
+        jar="C:\Users\elliotnoma\Documents\GitHub\V1.0\MyRFduinoTestNew\app\build\intermediates\exploded-aar\com.android.support\design\23.1.1\jars\classes.jar"
         jumboMode="false"
         revision="22.0.1"
-        sha1="09c5e804bc67fc0580360043dff067df574a60d4">
-        <dex dex="C:\Users\elliotnoma\AndroidstudioProjects\MyRFduinoTest\app\build\intermediates\pre-dexed\debug\classes-1a580256b9f2fa98672a8b458ff3b327a571ca42.jar" />
+        sha1="379471b2bd17d9737c050345c08e8c7d16589784">
+        <dex dex="C:\Users\elliotnoma\Documents\GitHub\V1.0\MyRFduinoTestNew\app\build\intermediates\pre-dexed\release\classes-8e8591fc74a0b1f0574db53a0424b7207870673f.jar" />
     </item>
     <item
-        jar="C:\Users\elliotnoma\AndroidstudioProjects\MyRFduinoTest\app\build\intermediates\exploded-aar\com.android.support\support-v4\23.1.1\jars\classes.jar"
+        jar="C:\Users\elliotnoma\Documents\GitHub\V1.0\MyRFduinoTestNew\app\build\intermediates\exploded-aar\com.android.support\appcompat-v7\23.1.1\jars\classes.jar"
+        jumboMode="false"
+        revision="22.0.1"
+        sha1="5c5699834e9722f1c288fea2de82725d078ba127">
+        <dex dex="C:\Users\elliotnoma\Documents\GitHub\V1.0\MyRFduinoTestNew\app\build\intermediates\pre-dexed\release\classes-0ce6d1b7dc9bf1181553225c6e6bd7676ab2b023.jar" />
+    </item>
+    <item
+        jar="C:\Users\elliotnoma\AppData\Local\Android\sdk1\extras\android\m2repository\com\android\support\support-annotations\23.1.1\support-annotations-23.1.1.jar"
+        jumboMode="false"
+        revision="22.0.1"
+        sha1="8d680ba5a623724d1fb0e81c36a790f023a6cede">
+        <dex dex="C:\Users\elliotnoma\Documents\GitHub\V1.0\MyRFduinoTestNew\app\build\intermediates\pre-dexed\release\support-annotations-23.1.1-745361db19d5196f49253b19843b05e386d893a1.jar" />
+    </item>
+    <item
+        jar="C:\Users\elliotnoma\Documents\GitHub\V1.0\MyRFduinoTestNew\app\build\intermediates\exploded-aar\com.android.support\support-v4\23.1.1\jars\classes.jar"
         jumboMode="false"
         revision="22.0.1"
         sha1="6cbc7773921fcfedbe55657578f0cbfe614778dc">
-        <dex dex="C:\Users\elliotnoma\AndroidstudioProjects\MyRFduinoTest\app\build\intermediates\pre-dexed\debug\classes-4525eac13fee3cf4c845c5106c33745280b4ba5a.jar" />
+        <dex dex="C:\Users\elliotnoma\Documents\GitHub\V1.0\MyRFduinoTestNew\app\build\intermediates\pre-dexed\release\classes-84f815787ae088d98e0b2f0ee3a50d8d0fdc0915.jar" />
+    </item>
+    <item
+        jar="C:\Users\elliotnoma\Documents\GitHub\V1.0\MyRFduinoTestNew\app\build\intermediates\exploded-aar\com.android.support\recyclerview-v7\23.1.1\jars\classes.jar"
+        jumboMode="false"
+        revision="22.0.1"
+        sha1="09c5e804bc67fc0580360043dff067df574a60d4">
+        <dex dex="C:\Users\elliotnoma\Documents\GitHub\V1.0\MyRFduinoTestNew\app\build\intermediates\pre-dexed\release\classes-468b5fb93592d4736188efdfdf743813648f7fc8.jar" />
     </item>
 
 </items>

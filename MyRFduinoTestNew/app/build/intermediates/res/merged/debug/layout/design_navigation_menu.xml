@@ -23,4 +23,4 @@
         android:paddingBottom="@dimen/design_navigation_padding_bottom"
         android:clipToPadding="false"
         android:scrollbars="vertical"/>
-<!-- From: file:/usr/local/google/buildbot/src/googleplex-android/mnc-supportlib-release/frameworks/support/design/res/layout/design_navigation_menu.xml --><!-- From: file:/C:/Users/elliotnoma/AndroidstudioProjects/MyRFduinoTest/app/build/intermediates/exploded-aar/com.android.support/design/23.1.1/res/layout/design_navigation_menu.xml -->
+<!-- From: file:/usr/local/google/buildbot/src/googleplex-android/mnc-supportlib-release/frameworks/support/design/res/layout/design_navigation_menu.xml --><!-- From: file:/C:/Users/elliotnoma/Documents/GitHub/V1.0/MyRFduinoTestNew/app/build/intermediates/exploded-aar/com.android.support/design/23.1.1/res/layout/design_navigation_menu.xml -->
