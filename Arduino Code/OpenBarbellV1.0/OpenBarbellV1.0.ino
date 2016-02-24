@@ -564,7 +564,7 @@ void send_all_data() {
 	if (sendData) {//only send data if you just registered a new rep
 	  repPerformance[0] = (float) rep;
 	  repPerformance[1] = (float) avgVelocity; 
-	  repPerformance[2] = (float) repArray[rep]; //JON PUT NEW VELOCITY HERE
+	  repPerformance[2] = (float) repArray[rep];
 	  repPerformance[3] = (float) displacement; 
 	  repPerformance[4] = (float) peakVelocity[rep]; 
 	  send_floatList(repPerformance, 5);
@@ -619,7 +619,7 @@ void calcRep(bool isGoingUpward, int currentState){
     //increment or decrement the distance by one tic length, depending on direction
     if (isGoingUpward){
       
-	  displacement = counter_simplelengthbytic*ticLength;
+	  //displacement = counter_simplelengthbytic*ticLength;
 	  
 	  micros_holder = micros();
 	  
@@ -674,8 +674,8 @@ void calcRep(bool isGoingUpward, int currentState){
       // If you're going downward, and you were just going upward, you potentially just finished a rep. 
       // Do your math, check if it fits the rep criteria, and store it in an array.
 	  if (isGoingUpwardLast && rep<=repArrayCount){
+	  displacement = counter_simplelengthbytic*ticLength;
         if (displacement > minRepThreshold){ 
-         
 		  total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2) - time_waiting;
           dispArray[rep] = displacement/1000;
           timeArray[rep] = (float)total_time/1000000;
@@ -890,7 +890,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 	  systemTrayDisplay();
 	  display.setTextSize(1);
 	  display.setCursor(0,0);
-	  display.print("Rep#:1 ");
+	  display.print("Rep#:1  ");
       display.display();         //end nate add
 	  RFduino_ULPDelay(1);
 	  
