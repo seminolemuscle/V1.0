@@ -54,8 +54,8 @@ Adafruit_SSD1306 display(OLED_RESET);
 /***********START DEVICE SPECIFIC INFO ***************/
 
 //Scheme "OB XXX" where XXX is the serial number
-const char *device_name = "OB 69";
-const long ticLength = 2623;
+const char *device_name = "OB 20";
+const long ticLength = 2684;
 
 /***********END DEVICE SPECIFIC INFO ***************/
 
@@ -64,6 +64,7 @@ float CODE_VERSION = 1.04;
 
 //START TestBed Section - Do not modify
 const bool testbed_readouts = 0;
+int peak_vel_at = 0;
 //END TestBed Section
 
 boolean bluetoothOn = false;
@@ -111,11 +112,12 @@ unsigned long twoSec = 2000;
 unsigned long ticDiff = 0;
 const unsigned long backlightTime = 10000;
 
-uint16_t myDTs[500] = {0};
-const int repArrayCount=150;
+//1200 Dts will give 1200*~2.68 mm = 3.2 m = 10.5 ft
+const int myDTCounter_size = 1200;
+uint16_t myDTs[myDTCounter_size] = {0};
+const int repArrayCount=100;
 float repArray[repArrayCount] = {0.0};
 float peakVelocity[repArrayCount] = {0.0};
-float peakAcceleration[repArrayCount] = {0.0};
 uint16_t dispArray[repArrayCount] = {0};
 float timeArray[repArrayCount] = {0.0};
 
@@ -135,8 +137,7 @@ boolean backlightFlag = 1;
 boolean RbuttonDepressed = 0;
 boolean LbuttonDepressed = 0;
 
-float peakAcc = 0.0;
-float peakAccFinal = 0.0;
+
 float currentInstVel = 0.0;
 float lastInstVel = 0.0;
 int buttonstate = 0;        
@@ -538,7 +539,10 @@ void send_floatList(float *floatList, int len) {
 // since we are combining every two values, if the list has an odd number of values we need to send the last one
 
 void send_float_from_intList(uint16_t *intList, uint16_t len) {
-  for(int i=0; i<(len-1); i=i+2){
+ 
+ //analogWrite(pin_led,10);
+ 
+ for(int i=0; i<(len-1); i=i+2){
 	if((intList[i]-10000)<0 && (intList[i+1]-10000)<0){	//Check to see if there will be a value that may be truncated
 		while (!RFduinoBLE.sendFloat((float)intList[i]+(float)intList[i+1]/10000));
 	} else {	//If there is a potential for truncation then each number will be sent separate
@@ -550,6 +554,9 @@ void send_float_from_intList(uint16_t *intList, uint16_t len) {
   if(len%2==1){	//Check if there was an odd number of values
 	while(!RFduinoBLE.sendFloat((float)intList[len]));
   }
+  
+  //digitalWrite(pin_led,LOW);
+  
 } // END send_float_from_intList
 
 
@@ -651,27 +658,32 @@ void calcRep(bool isGoingUpward, int currentState){
 		send_floatList(startMessage, 1);
         rep += 1;
 
+		currentInstVel = 0;
+		lastInstVel = 0;
+		
         minDT = 1000000;
 		myDTCounter = 0;
       }
 	  //keeping instantaneous velocities for our peak velocity reading
       //instVelTimestamps[counter_lengthbyticinfunction] = (unsigned int)(tic_timestamp-tic_timestamp_last);
       ticDiff = tic_timestamp - tic_timestamp_last;
-	  if(!(myDTCounter%2)){
-		myDTs[(myDTCounter/2)] = (uint16_t)(ticDiff/100);
-	  }
-	  myDTCounter++;
-	  if(ticDiff < minDT){
-        minDT = ticDiff;
-      }
-	  currentInstVel = (float)(ticLength*1000/((long)(minDT)))/1000;
-	  peakAcc = (currentInstVel - lastInstVel)/(((float)(ticDiff))/1000000);
-	  if(peakAcc > peakAccFinal){
-		 peakAccFinal = peakAcc;
-	  }
-	  lastInstVel = currentInstVel;
-      tic_timestamp_last = tic_timestamp;
+	  tic_timestamp_last = tic_timestamp;
+	  
+		if (ticDiff < minDT){
+			minDT=ticDiff;
+			peak_vel_at=myDTCounter;
+		}
 
+	  
+	  if(myDTCounter<myDTCounter_size){
+		myDTs[myDTCounter] = (uint16_t)(ticDiff/10);
+	  }
+	  
+	  myDTCounter++;
+	  
+	  
+	  
+      
     } else {
       // If you're going downward, and you were just going upward, you potentially just finished a rep. 
       // Do your math, check if it fits the rep criteria, and store it in an array.
@@ -681,8 +693,7 @@ void calcRep(bool isGoingUpward, int currentState){
 		  total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2) - time_waiting;
           dispArray[rep] = displacement/1000;
           timeArray[rep] = (float)total_time/1000000;
-          peakVelocity[rep] = (float)(ticLength*1000/((long)(minDT)))/1000;
-          peakAcceleration[rep] = peakAccFinal;
+          peakVelocity[rep] = float(ticLength)/float(minDT);
          
 		 repArray[rep] = ((float)(counter_simplelengthbytic*ticLength)/(float)(total_time/1000))/1000;
           
@@ -703,7 +714,6 @@ void calcRep(bool isGoingUpward, int currentState){
     }
       
     isGoingUpwardLast = isGoingUpward;
-    //Serial.println(instvel);
     currentStateTemp = currentState;
   }
 }
@@ -810,9 +820,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 			display.print("MODE OFF");
 		}
         display.display();
-		//display.startscrollleft(0x00, 0x0F);
 		RFduino_ULPDelay(SECONDS(2));
-		//display.stopscroll();
 		repDisplay = repDone;
       }
     }
@@ -836,22 +844,12 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 				display.print("MODE");
 			}
 			display.display();
-			//display.startscrollleft(0x00, 0x0F);
 			RFduino_ULPDelay(SECONDS(2));
-			//display.stopscroll();
 			repDisplay = repDone;
 			}
 		}
   }
-  /* Button and string combination code. Not finished - does not work. Might need to separate Rbutton and Lbutton, as millis() - XHold for the non-depressed button will almost always be greater than the action times
-  if (RbuttonDepressed ^ LbuttonDepressed){
-    if (((millis() - rightHold) > rightHoldActionTime)||((millis() - leftHold) > leftHoldActionTime)){
-      if ((repDisplay < (repDone + 1))&&(repDisplay > 0)){
-        repDisplay += (int)instvel;
-      }
-    }
-  }
-  */
+
   if ((repDisplay != repDisplayLast)||(repDone != repDoneLast)){  
     // if the displayed rep changes, keep the time so we know when to dim the backlight
     displayTime = millis();
@@ -862,7 +860,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
     if (repDisplay == (repDone + 1)){
 		//This 'if' statement keeps you from going from "Begin Set" back to "Delete Past Set?"
 		if(repDisplayLast < (repDone + 1)){
-		  display.clearDisplay(); //nate add
+		  display.clearDisplay(); 
 		  display.setTextSize(2);
 		  display.setTextColor(WHITE);
 		  display.setCursor(0,0);
@@ -872,7 +870,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.setCursor(0,40);
 		  display.println("R Button-Delete Set");
 		  display.println("L Button-Go Back");
-		  display.display();         //end nate add
+		  display.display();        
 		}
     } else if (repDisplay > (repDone + 1)){
       counter_simplelengthbytic=0; //JDLTEST
@@ -884,7 +882,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       repDone = 0;
       repDoneLast = 0;
 	  
-	  display.clearDisplay(); //nate add
+	  display.clearDisplay(); 
       display.setTextSize(2);
       display.setTextColor(WHITE,BLACK);
       display.setCursor(0,15);
@@ -893,7 +891,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 	  display.setTextSize(1);
 	  display.setCursor(0,0);
 	  display.print("Rep#:1  ");
-      display.display();         //end nate add
+      display.display(); 
 	  RFduino_ULPDelay(1);
 	  
       memset(repArray,0,sizeof(repArray));
@@ -905,7 +903,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
       myDTCounter = 0;
     } else {
 		if(!flipPowerOlyScreen){
-		  display.clearDisplay(); //nate add
+		  display.clearDisplay();
 		  display.setTextSize(1);
 		  display.setTextColor(WHITE);
 		  display.setCursor(0,9);
@@ -913,7 +911,7 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.setTextSize(3);
 		  display.setTextColor(WHITE);
 		  display.setCursor(0,19);
-		  display.print(repArray[repDisplay]); //JON INSERT NEW VELOCITY HERE
+		  display.print(repArray[repDisplay]); 
 		  display.setTextSize(1);
 		  display.print("m/s");
 		  display.setCursor(0,42);
@@ -929,22 +927,22 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.print(dispArray[repDisplay]);
 		  display.print("mm");
 
-			if(testbed_readouts){
+		  	if(testbed_readouts){
 				display.setTextSize(1);
-				display.setCursor(90,22);
-				display.print("*Time");
-				display.setCursor(80,32);
-				display.print("*");
-				display.print(timeArray[repDisplay]);
+				display.setCursor(100,12);
+				display.print(peak_vel_at);
+
+				display.setCursor(100,22);
+				display.print(myDTCounter);
 			}
 
 		  systemTrayDisplay();
-		  display.display();         //end nate add
+		  display.display();      
 		  
           send_all_data(); //moved send_all_data here so it doesn't lag the display
 		  
 	    } else {
-		  display.clearDisplay(); //nate add
+		  display.clearDisplay();
 		  display.setTextSize(1);
 		  display.setTextColor(WHITE);
 		  display.setCursor(0,9);
@@ -960,13 +958,19 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.setCursor(0,51);
 		  display.print(timeArray[repDisplay]);
 		  display.print("sec");
-		  display.setCursor(77,42);
-		  display.print("Peak Acc:");
-		  display.setCursor(77,51);
-		  display.print(peakAcceleration[repDisplay]);
 		  systemTrayDisplay();
-		  display.display();         //end nate add
 		  
+		  	if(testbed_readouts){
+				display.setTextSize(1);
+				display.setCursor(100,12);
+				display.print(peak_vel_at);
+
+				display.setCursor(100,22);
+				display.print(myDTCounter);
+			}
+		  
+		  
+		  display.display();      
 		  send_all_data(); //moved send_all_data here so it doesn't lag the display
 	    }
     }
