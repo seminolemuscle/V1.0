@@ -1,32 +1,44 @@
 /*
-  Interrup Based Encoder LED Blinking
+ OpenBarbell V1.0 - the worlds first open source velocity measuring device
  
- Turns on and off a light emitting diode(LED) connected to digital  
- pin 13, when an encoder sends a rising edge to digital input pin 2.
+ This code utilizes an RFduino and an HLC2705 quatrature encoder chip to
+ read the position of a retractable string attached to a barbell. 
+ You can see squatsandscience.com/openbarbell for more information.
  
+ Copyright (c) 2015 squatsandscience.com.  All right reserved.
+
+ This code is free software; you can redistribute it and/or
+ modify it under the terms of the Creative Commons 
+ Attribution-NonCommercial-ShareAlike 4.0 International Public License.
+
+ This code is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ See the Creative Commons Attribution-NonCommercial-ShareAlike 
+ 4.0 International Public License for more details.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  
- The circuit:
- * LED attached from pin 13 to ground 
- * encoder attached to pin 2
- * 10K resistor attached to pin 2 from 5v+
- 
- * Note: on most Arduinos there is already an LED on the board
- attached to pin 13.
- 
- 
- created 2015
+ Created 2015
  Jordan Berke
+ Jonathan Lenoff
+ Elliot Noma
+ Squats & Science Labs, LLC
  */
-// constants won't change. They're used here to 
-// set pin numbers:
+
 #include <SPI.h>
 #include <Wire.h>
 #include <Arduino.h>
 #include <MAX1704.h>
-//#include <LiquidCrystal_I2C.h>  //Nate comments
-#include <Adafruit_GFX.h>         //Nate addition
-#include <Adafruit_SSD1306ms.h>     //Nate addition
-#include <RFduinoBLE.h>  // Elliot addition
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306ms.h>
+#include <RFduinoBLE.h>
 
 #define OLED_RESET 9
 Adafruit_SSD1306 display(OLED_RESET);
@@ -47,15 +59,16 @@ const long ticLength = 2623;
 
 /***********END DEVICE SPECIFIC INFO ***************/
 
+
 float CODE_VERSION = 1.04;
 
 //START TestBed Section - Do not modify
 const bool testbed_readouts = 0;
 //END TestBed Section
 
-boolean bluetoothOn = false;  // Elliot addition
-boolean bluetoothStartNextLoop = false; // Elliot addition
-float repPerformance[] = {0.0, 1.0,2.0,3.0,4.0,5.0};  // Elliot addition
+boolean bluetoothOn = false;
+boolean bluetoothStartNextLoop = false;
+float repPerformance[] = {0.0, 1.0,2.0,3.0,4.0,5.0};
 
 const int pin_buttonRight =  0;
 const int pin_buttonLeft = 1;
@@ -64,7 +77,6 @@ const int pin_encoder_dir = 3;
 const int pin_encoder_tach = 4;
 
 const unsigned long batteryCheckTime = 10000000;     //The amount of time between battery checks. 10 sec
- //in micrometers
 volatile int state = LOW;
 //state flips on startup, so we need to put the temp value at HIGH so we don't run through the 
 //code one time at startup before getting an actual tic reading
@@ -92,7 +104,6 @@ unsigned long total_time = 0;
 unsigned long displayTime = 0;
 unsigned long batteryTime = 0;
 unsigned long minTimer = 0;
-//unsigned long fiveSecTimer = 0; //not being used?
 unsigned long minTimer2 = 0;
 unsigned long twoSecTimer2 = 0;
 unsigned long oneMinute = 60000;
@@ -128,10 +139,6 @@ float peakAcc = 0.0;
 float peakAccFinal = 0.0;
 float currentInstVel = 0.0;
 float lastInstVel = 0.0;
-//unsigned int instVelTimestamps[1000] = {0};
-// Pin 13: Arduino has an LED connected on pin 13
-// Pin 11: Teensy 2.0 has the LED on pin 11
-// Pin 6: Teensy++ 2.0 has the LED on pin 6
 int buttonstate = 0;        
 static unsigned long last_interrupt_time = 0;
 static unsigned long last_interrupt_time2 = 0;
@@ -142,8 +149,6 @@ uint16_t charge = 50;
 uint16_t restTime = 0;
 uint16_t myDTCounter = 0;
 float startMessage[1] = {-1234.0};
-//int battUpdates = 0;
-//LiquidCrystal_I2C lcd(0x27,20,4); //Addr: 0x3F, 20 chars & 4 lines    Nate comment
 const int threshold_buttonhold=100; //cycles of buttonholdtimer to cross threshold
 const int buttonholdtimer=10;  //delay time
 int counter_buttonRighthold=0;
@@ -196,7 +201,6 @@ MAX1704 fuelGauge;
 
 
 
-
 // ********** Primary setup. Only to be run once on startup. ********** \\
 
 void setup() {  
@@ -217,12 +221,6 @@ void setup() {
   pinMode(pin_encoder_dir, INPUT); 
 
   RFduino_pinWakeCallback(pin_encoder_tach, HIGH, encoderState);
-
-  /* Elliots test messages for Bluetooth
-    Serial.begin(9600);
-    Serial.println("starting my task ...");
-    randomSeed(analogRead(0));  // can be removed at any time since its only for generating random test message
-  */
   
   fuelGauge.reset();
   fuelGauge.quickStart();
@@ -243,6 +241,7 @@ void setup() {
   display.display();
   RFduino_ULPDelay(2000);
 
+  //initial check of the battery charge
   charge = fuelGauge.stateOfCharge();
 	if(charge>100){
 		charge=100;
@@ -252,6 +251,7 @@ void setup() {
 }
 
 // ******************************************************************** \\
+
 
 
 
@@ -321,7 +321,9 @@ void directionCalc(){
 
 void minuteTimer(){
   if(((millis()-minTimer)%oneMinute) < 20){
+  //this timer allows you in if you just reached the timer amount
 	if((millis()-minTimer2)>30){
+	//this timer resets after a longer period than the first timer, so it only enters once
 	  minTimer2 = millis();
 	  restTime++;
 	  
@@ -352,7 +354,7 @@ void minuteTimer(){
 // ********** Function to blink LED every XX seconds, if there's nothing going on ********** \\
 
 void LEDBlink(){
-	//if it's been 5 seconds, enter the statement. If the second timer is true, it won't be during the next loop so the first timer can't trip more than once.
+	//if it's been 2 seconds, enter the statement. If the second timer is true, it won't be during the next loop so the first timer can't trip more than once.
   if(((millis()%twoSec) < 20)&&((!goingUpward)||(LEDInit))){
 	if((millis()-twoSecTimer2)>30){
 	  twoSecTimer2 = millis();
@@ -388,7 +390,7 @@ void displayOffTimer(){
 
 
 
-// ********** Function to initialize Bluetooth if given the command by user ********** \\
+// ********** Function to initialize Bluetooth if given the command by setup ********** \\
 
 void initializeBluetooth(){
   //if (!bluetoothOn && bluetoothStartNextLoop) {
@@ -405,7 +407,7 @@ void initializeBluetooth(){
   //}
 }
 
-// *********************************************************************************** \\
+// ************************************************************************************ \\
 
 
 
