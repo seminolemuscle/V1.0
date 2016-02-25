@@ -151,7 +151,6 @@ uint16_t flipLED = 0;
 uint16_t charge = 50;
 uint16_t restTime = 0;
 uint16_t myDTCounter = 0;
-uint16_t precisionCounter = 0;
 float startMessage[1] = {-1234.0};
 const int threshold_buttonhold=100; //cycles of buttonholdtimer to cross threshold
 const int buttonholdtimer=10;  //delay time
@@ -171,7 +170,9 @@ bool initialized = false;
 bool flippedDirection = false;
 bool normalDirection = false;
 bool BTRefresh = false;
-uint8_t highPrecisionMode = 0;
+
+#define precisionCounter_start 5;
+uint16_t precisionCounter = precisionCounter_start;
   
 unsigned int counter_simplelengthbytic=0;		//This is a simple counter that is called to count how many times we enter the interrupt
 
@@ -181,13 +182,9 @@ unsigned long micros_holder=0;	//This is a temporary holder used so we don't hav
 // 		"Min" tick length = ~2.6 mm
 // 		"Min" ticks/second = (min detectable speed)/(min tick length) = (10 mm/s)/(2.6 mm/tick) = ~3.8462 ticks/second
 // 		"Max" time between ticks = (1 tick)/(min ticks/second)=(1)/(~3.8462 ticks/second) = .26 sec = 260000 microseconds = max_tick_time_allowable
-const unsigned long  max_tick_time_allowable = 260000;		// max_tick_time_allowable is a variable that is used to determine if the the rep "started" but really it's just pausing - see above for math used to derive number
+const unsigned long  max_tick_time_allowable = 260000;		// max_tick_time_allowable is a variable that is used to determine if the the rep "started" but really it's just pausing - see above for math used to derive number6
 
 unsigned long time_waiting = 0; // Once we determine that the user is pausing during a rep we start to increment a waiting timer to subtract from the overall time
-
-//		Starting threshold = first ~6 inches
-//		starting threshold in ticks = (starting threshold)*(25.4 mm/in)/(min tick length) = (6)*(25.4)/(2.6)
-const int wait_time_distance_min_in_ticks = 58;
 
 int encoderState(uint32_t ulPin)
 {
@@ -565,9 +562,10 @@ void RFduinoBLE_onReceive(char *data, int len)
 		invertMode();
 		}
 	if(bitRead(data[0],3)){ //requires 08 from device
-		if(highPrecisionMode){
-			highPrecisionMode = 0;
-		}else highPrecisionMode = 1;
+		precisionCounter--;
+		if(precisionCounter<1){
+			precisionCounter=precisionCounter_start;
+		}
 	}
 	if(bitRead(data[0],4)){ //requires 10 from device
 		backlightTime = data[1]*1000;
@@ -640,16 +638,16 @@ void send_float_from_intList(uint16_t *intList, uint16_t len) {
  
  //analogWrite(pin_led,10);
  
- for(int i=0; i<(len-1); i=i+2){
-	if(((float)intList[i]-10000)<0 && ((float)intList[i+1]-10000)<0){	//Check to see if there will be a value that may be truncated
-		while (!RFduinoBLE.sendFloat((float)intList[i]+(float)intList[i+1]/10000));
+ for(int i=precisionCounter; i<(len-precisionCounter); i=i+(2*precisionCounter)){
+	if((intList[i]-10000)<0 && (intList[i+precisionCounter]-10000)<0){	//Check to see if there will be a value that may be truncated
+		while (!RFduinoBLE.sendFloat((float)intList[i]+(float)intList[i+precisionCounter]/10000));
 	} else {	//If there is a potential for truncation then each number will be sent separate
 		while (!RFduinoBLE.sendFloat((float)intList[i]));
-		while (!RFduinoBLE.sendFloat((float)intList[i+1]));
+		while (!RFduinoBLE.sendFloat((float)intList[i+precisionCounter]));
 	}
   }
   
-  if(len%2==1){	//Check if there was an odd number of values
+  if(len%precisionCounter==1){	//Check if there was an odd number of values
 	while(!RFduinoBLE.sendFloat((float)intList[len]));
   }
   
@@ -674,8 +672,10 @@ void send_all_data() {
 	  repPerformance[2] = (float) dispArray[rep]; 
 	  repPerformance[3] = (float) peakVelocity[rep]; 
 	  send_floatList(repPerformance, 4);
+	  send_single_float(-9999.0);
+	  send_single_float(precisionCounter);
 	  send_single_float(-9876.0);
-	  send_float_from_intList(myDTs, (myDTCounter/(2 - highPrecisionMode)));
+	  send_float_from_intList(myDTs, myDTCounter);
 	  send_single_float(-6789.0);
 	  send_single_float((float)charge);
 	  sendData = false;
@@ -737,7 +737,7 @@ void calcRep(bool isGoingUpward, int currentState){
 	  // continually increase and throw off the average velocity for the rep - to compensate for this we see how much time someone is waiting and
 	  // subtract that from the total_time
 	  
-	  if(counter_simplelengthbytic<wait_time_distance_min_in_ticks && (micros_holder-tic_timestamp)>max_tick_time_allowable){
+	  if(micros_holder-tic_timestamp>max_tick_time_allowable){
 		time_waiting = time_waiting + micros_holder-tic_timestamp;
 	  }
 	  
@@ -774,12 +774,13 @@ void calcRep(bool isGoingUpward, int currentState){
 			peak_vel_at=myDTCounter;
 		}
 		
-	  if((!(myDTCounter%2))||highPrecisionMode){
-	  precisionCounter = myDTCounter/(2 - highPrecisionMode);
+		if(!(myDTCounter%precisionCounter)){
+		//precisionCounter = myDTCounter/(highPrecisionMode+1);
 		  if(myDTCounter<myDTCounter_size){
-			myDTs[precisionCounter] = (uint16_t)(ticDiff/10);
+			myDTs[myDTCounter] = (uint16_t)(ticDiff/10);
 		  }
-	  }
+		}
+
 	  
 	  myDTCounter++;
 	  
@@ -792,7 +793,7 @@ void calcRep(bool isGoingUpward, int currentState){
 	  if (isGoingUpwardLast && rep<=repArrayCount){
 	  displacement = counter_simplelengthbytic*ticLength;
         if (displacement > minRepThreshold){ 
-		  total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2) - time_waiting;
+		  total_time = (tic_timestampLast - starttime) - time_waiting;
 		  peakVelTemp = float(ticLength)/float(minDT);
 		  //These scalers allow our measurements to match our testbench much more closely
 		  if(peakVelTemp < 0.3){
