@@ -141,6 +141,7 @@ boolean LbuttonDepressed = 0;
 
 float currentInstVel = 0.0;
 float lastInstVel = 0.0;
+float peakVelTemp = 0.0;
 int buttonstate = 0;        
 static unsigned long last_interrupt_time = 0;
 static unsigned long last_interrupt_time2 = 0;
@@ -792,9 +793,17 @@ void calcRep(bool isGoingUpward, int currentState){
 	  displacement = counter_simplelengthbytic*ticLength;
         if (displacement > minRepThreshold){ 
 		  total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2) - time_waiting;
+		  peakVelTemp = float(ticLength)/float(minDT);
+		  //These scalers allow our measurements to match our testbench much more closely
+		  if(peakVelTemp < 0.3){
+			peakVelocity[rep] = peakVelTemp;
+		  } else if (peakVelTemp < 0.9){
+			peakVelocity[rep] = peakVelTemp*0.975;
+		  } else peakVelocity[rep] = peakVelTemp*0.95;
+		  
 		  dispArray[rep] = displacement/1000;
           timeArray[rep] = (float)total_time/1000000;
-          peakVelocity[rep] = float(ticLength)/float(minDT);
+          //peakVelocity[rep] = float(ticLength)/float(minDT);
           peakVelLocation[rep] = (peak_vel_at*100)/myDTCounter;
 		  repArray[rep] = ((float)(counter_simplelengthbytic*ticLength)/(float)(total_time/1000))/1000;
           
