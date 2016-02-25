@@ -384,7 +384,7 @@ void olyPowerMode(){
 		if(repDone == 0){
 			repDisplayLast = 0;
 		}
-		repDisplay = repDone+1;
+		repDisplay = repDone;
 }
 
 // ************************************************************* \\
@@ -640,7 +640,7 @@ void send_float_from_intList(uint16_t *intList, uint16_t len) {
  //analogWrite(pin_led,10);
  
  for(int i=0; i<(len-1); i=i+2){
-	if((intList[i]-10000)<0 && (intList[i+1]-10000)<0){	//Check to see if there will be a value that may be truncated
+	if(((float)intList[i]-10000)<0 && ((float)intList[i+1]-10000)<0){	//Check to see if there will be a value that may be truncated
 		while (!RFduinoBLE.sendFloat((float)intList[i]+(float)intList[i+1]/10000));
 	} else {	//If there is a potential for truncation then each number will be sent separate
 		while (!RFduinoBLE.sendFloat((float)intList[i]));
@@ -669,13 +669,12 @@ void send_single_float(float singleFloat) {
 void send_all_data() {
 	if (sendData) {//only send data if you just finished recording a new rep
 	  repPerformance[0] = (float) rep;
-	  repPerformance[1] = (float) avgVelocity; 
-	  repPerformance[2] = (float) repArray[rep];
-	  repPerformance[3] = (float) displacement; 
-	  repPerformance[4] = (float) peakVelocity[rep]; 
-	  send_floatList(repPerformance, 5);
+	  repPerformance[1] = (float) repArray[rep];
+	  repPerformance[2] = (float) dispArray[rep]; 
+	  repPerformance[3] = (float) peakVelocity[rep]; 
+	  send_floatList(repPerformance, 4);
 	  send_single_float(-9876.0);
-	  send_float_from_intList(myDTs, (myDTCounter/2));
+	  send_float_from_intList(myDTs, (myDTCounter/(2 - highPrecisionMode)));
 	  send_single_float(-6789.0);
 	  send_single_float((float)charge);
 	  sendData = false;
@@ -775,7 +774,7 @@ void calcRep(bool isGoingUpward, int currentState){
 		}
 		
 	  if((!(myDTCounter%2))||highPrecisionMode){
-	  precisionCounter = myDTCounter/(highPrecisionMode+1);
+	  precisionCounter = myDTCounter/(2 - highPrecisionMode);
 		  if(myDTCounter<myDTCounter_size){
 			myDTs[precisionCounter] = (uint16_t)(ticDiff/10);
 		  }
@@ -910,10 +909,13 @@ void buttonStateCalc(){
 			if(!accomplishedSingleHold){
 			accomplishedSingleHold = true;
 			//fixes a bug where in certain situations the left button will keep the switching screens from clearing
+			olyPowerMode();
 			if(LbuttonDepressed){
 				repDisplay++;
 			}
-			olyPowerMode();
+			if(RbuttonDepressed){
+				repDisplay--;
+			}
 			}
 		}
   }
