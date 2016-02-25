@@ -64,7 +64,6 @@ float CODE_VERSION = 1.04;
 
 //START TestBed Section - Do not modify
 const bool testbed_readouts = 0;
-int peak_vel_at = 0;
 //END TestBed Section
 
 boolean bluetoothOn = false;
@@ -92,6 +91,7 @@ uint16_t repDone = 0;
 uint16_t repDoneLast = 0;
 uint16_t repDisplay = 2;
 uint16_t repDisplayLast = 0;
+uint16_t peak_vel_at = 0;
 long displacement = 0;
 
 unsigned long tic_time = 0;
@@ -110,7 +110,7 @@ unsigned long twoSecTimer2 = 0;
 unsigned long oneMinute = 60000;
 unsigned long twoSec = 2000;
 unsigned long ticDiff = 0;
-const unsigned long backlightTime = 10000;
+unsigned long backlightTime = 10000;
 
 //1200 Dts will give 1200*~2.68 mm = 3.2 m = 10.5 ft
 const int myDTCounter_size = 1200;
@@ -120,10 +120,11 @@ float repArray[repArrayCount] = {0.0};
 float peakVelocity[repArrayCount] = {0.0};
 uint16_t dispArray[repArrayCount] = {0};
 float timeArray[repArrayCount] = {0.0};
+uint8_t peakVelLocation[repArrayCount] = {0};
 
 
-uint16_t buttonStateRight = 0; // variable for reading the pushbutton status
-uint16_t buttonStateLeft = 0; // variable for reading the pushbutton status
+uint16_t buttonstateR = 0; // variable for reading the pushbutton status
+uint16_t buttonstateL = 0; // variable for reading the pushbutton status
 uint16_t buttonstateRtemp = 0;
 uint16_t buttonstateLtemp = 0;
 unsigned long rightHold = 0;
@@ -149,6 +150,7 @@ uint16_t flipLED = 0;
 uint16_t charge = 50;
 uint16_t restTime = 0;
 uint16_t myDTCounter = 0;
+uint16_t precisionCounter = 0;
 float startMessage[1] = {-1234.0};
 const int threshold_buttonhold=100; //cycles of buttonholdtimer to cross threshold
 const int buttonholdtimer=10;  //delay time
@@ -167,6 +169,8 @@ bool sendData = false;
 bool initialized = false;
 bool flippedDirection = false;
 bool normalDirection = false;
+bool BTRefresh = false;
+uint8_t highPrecisionMode = 0;
   
 unsigned int counter_simplelengthbytic=0;		//This is a simple counter that is called to count how many times we enter the interrupt
 
@@ -265,7 +269,7 @@ void setup() {
 void loop() {
   directionCalc();
   calcRep(goingUpward, state);
-  buttonStateCalc(buttonStateRight, buttonStateLeft);
+  buttonStateCalc();
   minuteTimer();
   displayOffTimer();
   LEDBlink();
@@ -312,6 +316,78 @@ void directionCalc(){
 }
 
 // ***************************************************** \\
+
+
+
+
+
+
+
+// ********** Function to invert screen ********** \\
+
+void invertMode(){
+		isFlipped = !isFlipped;
+		accomplishedDoubleHold = true;
+        //rightHold = 
+		display.ssd1306_command(SSD1306_DISPLAYON); 
+		display.clearDisplay();
+		display.invertDisplay(isFlipped);
+        display.setTextSize(3);
+        display.setCursor(0,0);
+		if(isFlipped){
+			display.print("INVERT");
+			display.setCursor(0,32);
+			display.setTextSize(2);
+			display.print("MODE ON");
+		}else {
+			display.print("INVERT");
+			display.setCursor(0,32);
+			display.setTextSize(2);
+			display.print("MODE OFF");
+		}
+        display.display();
+		RFduino_ULPDelay(SECONDS(2));
+		if(repDone == 0){
+			repDisplayLast = 0;
+		}
+		repDisplay = repDone+1;;
+}
+
+// *********************************************** \\
+
+
+
+
+
+
+
+// ********** Function to flip between power/oly mode ********** \\
+
+void olyPowerMode(){
+		flipPowerOlyScreen = !flipPowerOlyScreen;
+		
+		display.ssd1306_command(SSD1306_DISPLAYON); 
+		display.clearDisplay();
+		display.setTextSize(3);
+		display.setCursor(0,9);
+		if(flipPowerOlyScreen){
+			display.print("OLYMPIC");
+			display.setCursor(0,32);
+			display.print("MODE");
+		}else{
+			display.print("POWER");
+			display.setCursor(0,32);
+			display.print("MODE");
+		}
+		display.display();
+		RFduino_ULPDelay(SECONDS(2));
+		if(repDone == 0){
+			repDisplayLast = 0;
+		}
+		repDisplay = repDone+1;
+}
+
+// ************************************************************* \\
 
 
 
@@ -418,6 +494,9 @@ void initializeBluetooth(){
 // ********** Function to throw up a splash screen on BT connect ********** \\
 
 void RFduinoBLE_onConnect(){
+	display.ssd1306_command(SSD1306_DISPLAYON);
+	displayTime = millis();
+	RFduino_ULPDelay(200);
 	display.clearDisplay();
 	display.setTextSize(2);
     display.setCursor(0,0);
@@ -427,7 +506,9 @@ void RFduinoBLE_onConnect(){
 	display.display();
 	//display.startscrollleft(0x00, 0x0F);
 	RFduino_ULPDelay(SECONDS(2));
+	//repDisplay = repDone+1 forces the screen to update at the end of the rep array
 	repDisplay = repDone+1;
+	BTRefresh = true;
 }
 
 // ************************************************************************ \\
@@ -473,19 +554,35 @@ void RFduinoBLE_onReceive(char *data, int len)
 {
 // if the first byte is 0x01 / on / true
   if (data[0]){
-	if(bitRead(data[1],1)){
-		minRepThreshold = data[2]*1000;
+	if(bitRead(data[0],0)){ //requires 01 from device
+		minRepThreshold = (int)(data[1])*1000;
 		}
-	if(bitRead(data[1],2)){
-		flipPowerOlyScreen = !flipPowerOlyScreen;
+	if(bitRead(data[0],1)){ //requires 02 from device
+		olyPowerMode();
 		}
-	if(bitRead(data[1],3)){
-		isFlipped = !isFlipped;
+	if(bitRead(data[0],2)){ //requires 04 from device
+		invertMode();
 		}
-	if(bitRead(data[1],4)){
-		//anything else?
+	if(bitRead(data[0],3)){ //requires 08 from device
+		if(highPrecisionMode){
+			highPrecisionMode = 0;
+		}else highPrecisionMode = 1;
+	}
+	if(bitRead(data[0],4)){ //requires 10 from device
+		backlightTime = data[1]*1000;
 		}
-    }
+	if(bitRead(data[0],5)){ //requires 20 from device
+		if ((backlightFlag)&&(repDisplay < (repDone + 2))){
+			repDisplay += 1;
+		}
+	}
+	if(bitRead(data[0],6)){ //requires 40 from device
+		if ((backlightFlag)&&(repDisplay > 1)&&(repDisplay < repDone + 2)){
+			repDisplay -= 1;
+		}
+	}
+		
+  }
 }
 
 // **************************************************************************** \\
@@ -570,7 +667,7 @@ void send_single_float(float singleFloat) {
 
 
 void send_all_data() {
-	if (sendData) {//only send data if you just registered a new rep
+	if (sendData) {//only send data if you just finished recording a new rep
 	  repPerformance[0] = (float) rep;
 	  repPerformance[1] = (float) avgVelocity; 
 	  repPerformance[2] = (float) repArray[rep];
@@ -580,6 +677,7 @@ void send_all_data() {
 	  send_single_float(-9876.0);
 	  send_float_from_intList(myDTs, (myDTCounter/2));
 	  send_single_float(-6789.0);
+	  send_single_float((float)charge);
 	  sendData = false;
 	  }
 } //END send_all_data
@@ -599,7 +697,9 @@ void systemTrayDisplay(){
 	display.setTextSize(1);
 	display.setCursor(0,0);
 	display.print("Rep#:");
-	display.print(repDisplay);
+	if(repDisplay<repDone){
+		display.print(repDisplay);
+	}else display.print(repDone);
 	display.print("  ");
 	display.setCursor(55,0);
 	display.print(restTime);
@@ -660,7 +760,7 @@ void calcRep(bool isGoingUpward, int currentState){
 
 		currentInstVel = 0;
 		lastInstVel = 0;
-		
+		peak_vel_at = 0;
         minDT = 1000000;
 		myDTCounter = 0;
       }
@@ -673,10 +773,12 @@ void calcRep(bool isGoingUpward, int currentState){
 			minDT=ticDiff;
 			peak_vel_at=myDTCounter;
 		}
-
-	  
-	  if(myDTCounter<myDTCounter_size){
-		myDTs[myDTCounter] = (uint16_t)(ticDiff/10);
+		
+	  if((!(myDTCounter%2))||highPrecisionMode){
+	  precisionCounter = myDTCounter/(highPrecisionMode+1);
+		  if(myDTCounter<myDTCounter_size){
+			myDTs[precisionCounter] = (uint16_t)(ticDiff/10);
+		  }
 	  }
 	  
 	  myDTCounter++;
@@ -691,11 +793,11 @@ void calcRep(bool isGoingUpward, int currentState){
 	  displacement = counter_simplelengthbytic*ticLength;
         if (displacement > minRepThreshold){ 
 		  total_time = (tic_timestampLast - starttime) + .5*(tic_timestampLast - tic_timestampLast2) - time_waiting;
-          dispArray[rep] = displacement/1000;
+		  dispArray[rep] = displacement/1000;
           timeArray[rep] = (float)total_time/1000000;
           peakVelocity[rep] = float(ticLength)/float(minDT);
-         
-		 repArray[rep] = ((float)(counter_simplelengthbytic*ticLength)/(float)(total_time/1000))/1000;
+          peakVelLocation[rep] = (peak_vel_at*100)/myDTCounter;
+		  repArray[rep] = ((float)(counter_simplelengthbytic*ticLength)/(float)(total_time/1000))/1000;
           
 		  repDone = rep;
 		  //resets 60 second rest time counter
@@ -727,11 +829,11 @@ void calcRep(bool isGoingUpward, int currentState){
 
 // ********** Function that deals with and implements button presses. ********** \\
 
-void buttonStateCalc(int buttonstateR, int buttonstateL){
+void buttonStateCalc(){
   
   //Read button state once per loop
-  buttonStateLeft = digitalRead(pin_buttonLeft);
-  buttonStateRight = digitalRead(pin_buttonRight);
+  buttonstateL = digitalRead(pin_buttonLeft);
+  buttonstateR = digitalRead(pin_buttonRight);
   
   //update rep to be displayed to the screen if you recorded a new rep
   if (repDone != repDoneLast){
@@ -800,52 +902,18 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
   if (LbuttonDepressed && RbuttonDepressed){
     if (((millis() - rightHold) > bothHoldActionTime)&&((millis() - leftHold) > bothHoldActionTime)){
       if (!accomplishedDoubleHold){
-        isFlipped = !isFlipped;
-		accomplishedDoubleHold = true;
-        //rightHold = 
-		display.ssd1306_command(SSD1306_DISPLAYON); 
-		display.clearDisplay();
-		display.invertDisplay(isFlipped);
-        display.setTextSize(3);
-        display.setCursor(0,0);
-		if(isFlipped){
-			display.print("INVERT");
-			display.setCursor(0,32);
-			display.setTextSize(2);
-			display.print("MODE ON");
-		}else {
-			display.print("INVERT");
-			display.setCursor(0,32);
-			display.setTextSize(2);
-			display.print("MODE OFF");
-		}
-        display.display();
-		RFduino_ULPDelay(SECONDS(2));
-		repDisplay = repDone;
+        invertMode();
       }
     }
   } else if (LbuttonDepressed || RbuttonDepressed){
 		if (((millis() - rightHold) > singleHoldActionTime)&&((millis() - leftHold) > singleHoldActionTime)){
 			if(!accomplishedSingleHold){
-			flipPowerOlyScreen = !flipPowerOlyScreen;
 			accomplishedSingleHold = true;
-			
-			display.ssd1306_command(SSD1306_DISPLAYON); 
-			display.clearDisplay();
-			display.setTextSize(3);
-			display.setCursor(0,0);
-			if(flipPowerOlyScreen){
-				display.print("OLYMPIC");
-				display.setCursor(0,32);
-				display.print("MODE");
-			}else{
-				display.print("POWER");
-				display.setCursor(0,32);
-				display.print("MODE");
+			//fixes a bug where in certain situations the left button will keep the switching screens from clearing
+			if(LbuttonDepressed){
+				repDisplay++;
 			}
-			display.display();
-			RFduino_ULPDelay(SECONDS(2));
-			repDisplay = repDone;
+			olyPowerMode();
 			}
 		}
   }
@@ -859,11 +927,18 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
     
     if (repDisplay == (repDone + 1)){
 		//This 'if' statement keeps you from going from "Begin Set" back to "Delete Past Set?"
-		if(repDisplayLast < (repDone + 1)){
+		if((repDisplayLast < (repDone + 1))||BTRefresh){
+		  BTRefresh = false;
 		  display.clearDisplay(); 
+		  systemTrayDisplay();
+		  //display.setTextSize(1);
+	      //display.setCursor(0,0);
+		  //display.print("Rep#:");
+		  //display.print(repDisplay - 1);
+		  //display.print("  ");
 		  display.setTextSize(2);
 		  display.setTextColor(WHITE);
-		  display.setCursor(0,0);
+		  display.setCursor(0,9);
 		  display.println("Delete");
 		  display.println("Past Set?");
 		  display.setTextSize(1);
@@ -905,11 +980,11 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		if(!flipPowerOlyScreen){
 		  display.clearDisplay();
 		  display.setTextSize(1);
-		  display.setTextColor(WHITE);
+		  display.setTextColor(WHITE,BLACK);
 		  display.setCursor(0,9);
 		  display.print("Avg Vel:");
 		  display.setTextSize(3);
-		  display.setTextColor(WHITE);
+		  display.setTextColor(WHITE,BLACK);
 		  display.setCursor(0,19);
 		  display.print(repArray[repDisplay]); 
 		  display.setTextSize(1);
@@ -935,20 +1010,14 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 				display.setCursor(100,22);
 				display.print(myDTCounter);
 			}
-
-		  systemTrayDisplay();
-		  display.display();      
-		  
-          send_all_data(); //moved send_all_data here so it doesn't lag the display
-		  
 	    } else {
 		  display.clearDisplay();
 		  display.setTextSize(1);
-		  display.setTextColor(WHITE);
+		  display.setTextColor(WHITE,BLACK);
 		  display.setCursor(0,9);
 		  display.print("Peak Vel:");
 		  display.setTextSize(3);
-		  display.setTextColor(WHITE);
+		  display.setTextColor(WHITE,BLACK);
 		  display.setCursor(0,19);
 		  display.print(peakVelocity[repDisplay]);
 		  display.setTextSize(1);
@@ -958,21 +1027,16 @@ void buttonStateCalc(int buttonstateR, int buttonstateL){
 		  display.setCursor(0,51);
 		  display.print(timeArray[repDisplay]);
 		  display.print("sec");
-		  systemTrayDisplay();
-		  
-		  	if(testbed_readouts){
-				display.setTextSize(1);
-				display.setCursor(100,12);
-				display.print(peak_vel_at);
-
-				display.setCursor(100,22);
-				display.print(myDTCounter);
-			}
-		  
-		  
-		  display.display();      
-		  send_all_data(); //moved send_all_data here so it doesn't lag the display
-	    }
+		  display.setTextSize(1);
+		  display.setCursor(82,42);
+		  display.print("PeakHt:");
+		  display.setCursor(82,51);
+		  display.print(peakVelLocation[rep]);
+		  display.print("%");
+		}
+		systemTrayDisplay();
+		display.display();      
+		send_all_data(); //moved send_all_data here so it doesn't lag the display
     }
     repDoneLast = repDone;
     repDisplayLast = repDisplay; 
