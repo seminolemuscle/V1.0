@@ -1066,7 +1066,9 @@ void buttonStateCalc(){
 		  display.setCursor(0,42);
 		  display.print("Peak Vel:");
 		  display.setCursor(0,51);
-		  display.print(peakVelocity[repDisplay]);
+		  if(peakVelocity[repDisplay] > 2){
+			display.print("MAX");
+		  }else display.print(peakVelocity[repDisplay]);
 		  //display.print(myDTs[10]);
 		  //display.print(myDTCounter/2);
 		  display.print("m/s");
@@ -1093,7 +1095,9 @@ void buttonStateCalc(){
 		  display.setTextSize(3);
 		  display.setTextColor(WHITE,BLACK);
 		  display.setCursor(0,19);
-		  display.print(peakVelocity[repDisplay]);
+		  if(peakVelocity[repDisplay] > 2){
+			display.print("MAX");
+		  }else display.print(peakVelocity[repDisplay]);
 		  display.setTextSize(1);
 		  display.print("m/s");
 		  display.setCursor(0,42);
