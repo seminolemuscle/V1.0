@@ -55,14 +55,14 @@ Adafruit_SSD1306 display(OLED_RESET);
 /***********START DEVICE SPECIFIC INFO ***************/
 
 //Scheme "OB XXX" where XXX is the serial number
-const char *device_name = "OB 20";
+const char *device_name = "OB 999";
 const long ticLength = 2684;
-const int unit_number = 20;
+const int unit_number = 999;
 
 /***********END DEVICE SPECIFIC INFO ***************/
 
 
-float CODE_VERSION = 1.04;
+float CODE_VERSION = 1.05;
 
 //START TestBed Section - Do not modify
 const bool testbed_readouts = 0;
