@@ -57,6 +57,7 @@ Adafruit_SSD1306 display(OLED_RESET);
 //Scheme "OB XXX" where XXX is the serial number
 const char *device_name = "OB 20";
 const long ticLength = 2684;
+const int unit_number = 20;
 
 /***********END DEVICE SPECIFIC INFO ***************/
 
@@ -173,6 +174,8 @@ bool flippedDirection = false;
 bool normalDirection = false;
 bool BTRefresh = false;
 
+int ticDiffprecision = 10;
+
 /***** Filter variables *****/
 float testFrequency = 10;
 
@@ -187,7 +190,8 @@ unsigned long micros_holder=0;	//This is a temporary holder used so we don't hav
 // 		"Min" tick length = ~2.6 mm
 // 		"Min" ticks/second = (min detectable speed)/(min tick length) = (10 mm/s)/(2.6 mm/tick) = ~3.8462 ticks/second
 // 		"Max" time between ticks = (1 tick)/(min ticks/second)=(1)/(~3.8462 ticks/second) = .26 sec = 260000 microseconds = max_tick_time_allowable
-const unsigned long  max_tick_time_allowable = 260000;		// max_tick_time_allowable is a variable that is used to determine if the the rep "started" but really it's just pausing - see above for math used to derive number6
+#define max_tick_time_allowable_init 260000
+unsigned long  max_tick_time_allowable = max_tick_time_allowable_init;		// max_tick_time_allowable is a variable that is used to determine if the the rep "started" but really it's just pausing - see above for math used to derive number6
 
 unsigned long time_waiting = 0; // Once we determine that the user is pausing during a rep we start to increment a waiting timer to subtract from the overall time
 
@@ -556,35 +560,84 @@ String charToString(char *text, int len)
 
 void RFduinoBLE_onReceive(char *data, int len)
 {
+
+	int data_holder = 0;
 // if the first byte is 0x01 / on / true
   if (data[0]){
-	if(bitRead(data[0],0)){ //requires 01 from device
+	if(bitRead(data[0],0)){ //requires 01 XX where XX  is the hex number of displacement from 00 (0 mm) to FF (255000 micrometers = 255 mm = 10.039)  -- Increments of 10.039/255=.039 inches
 		minRepThreshold = (int)(data[1])*1000;
 		}
 	if(bitRead(data[0],1)){ //requires 02 from device
-		olyPowerMode();
+		data_holder = (int)(data[1]);
+		
+		if(data_holder<10){
+			olyPowerMode();
 		}
+		
+		if(data_holder>10){
+			invertMode();
+		}
+		
+	}
+	
 	if(bitRead(data[0],2)){ //requires 04 from device
-		invertMode();
+		testFrequency=(int)(data[1]);
 		}
-	if(bitRead(data[0],3)){ //requires 08 from device
-		precisionCounter--;
-		if(precisionCounter<1){
-			precisionCounter=precisionCounter_start;
+	if(bitRead(data[0],3)){ //requires 08 XX from device where XX is the precision
+		if((int)(data[1])<254){
+			precisionCounter = max(1,(int)(data[1]));
+		} else if ((int)(data[1])==254){
+			ticDiffprecision=10;
+		} else if ((int)(data[1])==255){
+			ticDiffprecision=1;
 		}
+		
 	}
 	if(bitRead(data[0],4)){ //requires 10 from device
 		backlightTime = data[1]*1000;
 		}
 	if(bitRead(data[0],5)){ //requires 20 from device
-		if ((backlightFlag)&&(repDisplay < (repDone + 2))){
-			repDisplay += 1;
+		data_holder = (int)(data[1]);
+		if(data_holder<10){
+			if ((backlightFlag)&&(repDisplay < (repDone + 2))){
+				repDisplay += 1;
+			}
+		} else if (data_holder>10 && data_holder< 20){
+			if ((backlightFlag)&&(repDisplay > 1)&&(repDisplay < repDone + 2)){
+				repDisplay -= 1;
+			}
 		}
 	}
+	
 	if(bitRead(data[0],6)){ //requires 40 from device
-		if ((backlightFlag)&&(repDisplay > 1)&&(repDisplay < repDone + 2)){
-			repDisplay -= 1;
+	
+		send_single_float(precisionCounter);
+		send_single_float(ticDiffprecision);
+		send_single_float(max_tick_time_allowable);
+		send_single_float(backlightTime);
+		send_single_float(minRepThreshold);
+		send_single_float(ticLength);
+		
+		charge = fuelGauge.stateOfCharge();
+		
+		send_single_float(charge);	
+		
+		send_single_float(unit_number);
+	}
+	
+	
+	
+	if(bitRead(data[0],7)){ //requires 80 XX from device
+		data_holder = min(1,(int)(data[1]));
+		if(data_holder>100){
+			data_holder=data_holder*200;
+		} 
+		max_tick_time_allowable=4294967294/data_holder;
+		
+		if(data_holder==255){
+		max_tick_time_allowable=0;
 		}
+		
 	}
 		
   }
@@ -676,10 +729,12 @@ void send_all_data() {
 	  repPerformance[0] = (float) rep;
 	  repPerformance[1] = (float) repArray[rep];
 	  repPerformance[2] = (float) dispArray[rep]; 
-	  repPerformance[3] = (float) peakVelocity[rep]; 
-	  send_floatList(repPerformance, 4);
+	  repPerformance[3] = (float) peakVelocity[rep];
+	  repPerformance[4] = (float) peakVelLocation[rep];
+	  send_floatList(repPerformance, 5);
 	  send_single_float(-9999.0);
 	  send_single_float(precisionCounter);
+	  send_single_float(ticDiffprecision);
 	  send_single_float(-9876.0);
 	  send_float_from_intList(myDTs, myDTCounter);
 	  send_single_float(-6789.0);
@@ -784,7 +839,7 @@ void calcRep(bool isGoingUpward, int currentState){
 		if(!(myDTCounter%precisionCounter)){
 		//precisionCounter = myDTCounter/(highPrecisionMode+1);
 		  if(myDTCounter<myDTCounter_size){
-			myDTs[myDTCounter] = (uint16_t)(ticDiff/10);
+			myDTs[myDTCounter] = (uint16_t)(ticDiff/ticDiffprecision);
 		  }
 		}
 
