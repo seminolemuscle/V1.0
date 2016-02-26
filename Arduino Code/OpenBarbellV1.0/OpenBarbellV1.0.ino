@@ -1043,7 +1043,7 @@ void buttonStateCalc(){
 		  display.setCursor(82,42);
 		  display.print("PeakHt:");
 		  display.setCursor(82,51);
-		  display.print(peakVelLocation[rep]);
+		  display.print(peakVelLocation[repDisplay]);
 		  display.print("%");
 		}
 		systemTrayDisplay();
