@@ -1068,10 +1068,13 @@ void buttonStateCalc(){
 		  display.setCursor(0,51);
 		  if(peakVelocity[repDisplay] > 2){
 			display.print("MAX");
-		  }else display.print(peakVelocity[repDisplay]);
+		  }else {
+			display.print(peakVelocity[repDisplay]);
+		    display.print("m/s");
+		  }
 		  //display.print(myDTs[10]);
 		  //display.print(myDTCounter/2);
-		  display.print("m/s");
+
 		  display.setCursor(82,42);
 		  display.print("ROM:");
 		  display.setCursor(82,51);
@@ -1097,9 +1100,12 @@ void buttonStateCalc(){
 		  display.setCursor(0,19);
 		  if(peakVelocity[repDisplay] > 2){
 			display.print("MAX");
-		  }else display.print(peakVelocity[repDisplay]);
+		  }else {
+			  display.print(peakVelocity[repDisplay]);
+			  display.setTextSize(1);
+			  display.print("m/s");
+		  }
 		  display.setTextSize(1);
-		  display.print("m/s");
 		  display.setCursor(0,42);
 		  display.print("Time:");
 		  display.setCursor(0,51);
