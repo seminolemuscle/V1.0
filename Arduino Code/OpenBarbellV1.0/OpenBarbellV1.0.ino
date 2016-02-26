@@ -39,6 +39,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306ms.h>
 #include <RFduinoBLE.h>
+#include <Filters.h>
 
 #define OLED_RESET 9
 Adafruit_SSD1306 display(OLED_RESET);
@@ -110,6 +111,7 @@ unsigned long twoSecTimer2 = 0;
 unsigned long oneMinute = 60000;
 unsigned long twoSec = 2000;
 unsigned long ticDiff = 0;
+unsigned long ticDiffFiltered = 0;
 unsigned long backlightTime = 10000;
 
 //1200 Dts will give 1200*~2.68 mm = 3.2 m = 10.5 ft
@@ -171,6 +173,9 @@ bool flippedDirection = false;
 bool normalDirection = false;
 bool BTRefresh = false;
 
+/***** Filter variables *****/
+float testFrequency = 10;
+
 #define precisionCounter_start 5;
 uint16_t precisionCounter = precisionCounter_start;
   
@@ -198,6 +203,7 @@ int encoderState(uint32_t ulPin)
 }
 
 MAX1704 fuelGauge;
+FilterOnePole filterOneLowpass( LOWPASS, testFrequency );
 
 
 
@@ -243,7 +249,7 @@ void setup() {
   display.print(CODE_VERSION);
   display.display();
   RFduino_ULPDelay(2000);
-
+  
   //initial check of the battery charge
   charge = fuelGauge.stateOfCharge();
 	if(charge>100){
@@ -768,9 +774,10 @@ void calcRep(bool isGoingUpward, int currentState){
       //instVelTimestamps[counter_lengthbyticinfunction] = (unsigned int)(tic_timestamp-tic_timestamp_last);
       ticDiff = tic_timestamp - tic_timestamp_last;
 	  tic_timestamp_last = tic_timestamp;
-	  
-		if (ticDiff < minDT){
-			minDT=ticDiff;
+	  filterOneLowpass.input( ticDiff );
+	  ticDiffFiltered = filterOneLowpass.output();
+		if (ticDiffFiltered < minDT){
+			minDT=ticDiffFiltered;
 			peak_vel_at=myDTCounter;
 		}
 		
