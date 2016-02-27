@@ -55,7 +55,7 @@ const int unit_number = 999;
 /***********END DEVICE SPECIFIC INFO ***************/
 
 
-float CODE_VERSION = 1.05;
+float CODE_VERSION = 1.06;
 
 //START TestBed Section - Do not modify
 const bool testbed_readouts = 0;
@@ -849,14 +849,8 @@ void calcRep(bool isGoingUpward, int currentState){
 	  displacement = counter_simplelengthbytic*ticLength;
         if (displacement > minRepThreshold){ 
 		  total_time = (tic_timestamp - starttime) - time_waiting;
-		  peakVelTemp = float(ticLength)/float(minDT);
-		  //These scalers allow our measurements to match our testbench much more closely
-		  if(peakVelTemp < 0.3){
-			peakVelocity[rep] = peakVelTemp;
-		  } else if (peakVelTemp < 0.9){
-			peakVelocity[rep] = peakVelTemp*0.975;
-		  } else peakVelocity[rep] = peakVelTemp*0.95;
-		  
+		  peakVelocity[rep] = float(ticLength)/float(minDT);
+		 
 		  dispArray[rep] = displacement/1000;
           timeArray[rep] = (float)total_time/1000000;
           //peakVelocity[rep] = float(ticLength)/float(minDT);
