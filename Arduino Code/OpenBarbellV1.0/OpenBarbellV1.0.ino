@@ -1,9 +1,12 @@
 /*
  OpenBarbell V1.0 - the worlds first open source velocity measuring device
-  This code utilizes an RFduino and an HLC2705 quatrature encoder chip to
+ 
+ This code utilizes an RFduino and an HLC2705 quatrature encoder chip to
  read the position of a retractable string attached to a barbell. 
+ 
  You can see squatsandscience.com/openbarbell for more information.
-  Copyright (c) 2015 squatsandscience.com.  All right reserved.
+ 
+ Copyright (c) 2015 squatsandscience.com.  All right reserved.
  This code is free software; you can redistribute it and/or
  modify it under the terms of the Creative Commons 
  Attribution-NonCommercial-ShareAlike 4.0 International Public License.
@@ -19,7 +22,8 @@
  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-  Created 2015
+  
+ Created 2015
  Jordan Berke
  Jonathan Lenoff
  Elliot Noma
@@ -55,7 +59,7 @@ const int unit_number = 999;
 /***********END DEVICE SPECIFIC INFO ***************/
 
 
-float CODE_VERSION = 1.06;
+float CODE_VERSION = 1.07;
 
 //START TestBed Section - Do not modify
 const bool testbed_readouts = 0;
@@ -351,7 +355,8 @@ void invertMode(){
 		if(repDone == 0){
 			repDisplayLast = 0;
 		}
-		repDisplay = repDone+1;;
+		repDisplay--;	//This is put in here so first rep isn't missed
+		//repDisplay = repDone+1;;
 }
 
 // *********************************************** \\
