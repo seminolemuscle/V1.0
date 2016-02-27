@@ -1,22 +1,17 @@
 /*
  OpenBarbell V1.0 - the worlds first open source velocity measuring device
- 
- This code utilizes an RFduino and an HLC2705 quatrature encoder chip to
+  This code utilizes an RFduino and an HLC2705 quatrature encoder chip to
  read the position of a retractable string attached to a barbell. 
  You can see squatsandscience.com/openbarbell for more information.
- 
- Copyright (c) 2015 squatsandscience.com.  All right reserved.
-
+  Copyright (c) 2015 squatsandscience.com.  All right reserved.
  This code is free software; you can redistribute it and/or
  modify it under the terms of the Creative Commons 
  Attribution-NonCommercial-ShareAlike 4.0 International Public License.
-
  This code is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  See the Creative Commons Attribution-NonCommercial-ShareAlike 
  4.0 International Public License for more details.
-
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -24,8 +19,7 @@
  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- 
- Created 2015
+  Created 2015
  Jordan Berke
  Jonathan Lenoff
  Elliot Noma
@@ -54,7 +48,6 @@ Adafruit_SSD1306 display(OLED_RESET);
 
 /***********START DEVICE SPECIFIC INFO ***************/
 
-//Scheme "OB XXX" where XXX is the serial number
 const char *device_name = "OB 999";
 const long ticLength = 2684;
 const int unit_number = 999;
@@ -798,7 +791,7 @@ void calcRep(bool isGoingUpward, int currentState){
 	  // continually increase and throw off the average velocity for the rep - to compensate for this we see how much time someone is waiting and
 	  // subtract that from the total_time
 	  
-	  if(micros_holder-tic_timestamp>max_tick_time_allowable){
+	  if((micros_holder-tic_timestamp)>max_tick_time_allowable){
 		time_waiting = time_waiting + micros_holder-tic_timestamp;
 	  }
 	  
@@ -855,7 +848,7 @@ void calcRep(bool isGoingUpward, int currentState){
 	  if (isGoingUpwardLast && rep<=repArrayCount){
 	  displacement = counter_simplelengthbytic*ticLength;
         if (displacement > minRepThreshold){ 
-		  total_time = (tic_timestampLast - starttime) - time_waiting;
+		  total_time = (tic_timestamp - starttime) - time_waiting;
 		  peakVelTemp = float(ticLength)/float(minDT);
 		  //These scalers allow our measurements to match our testbench much more closely
 		  if(peakVelTemp < 0.3){
