@@ -52,14 +52,15 @@ Adafruit_SSD1306 display(OLED_RESET);
 
 /***********START DEVICE SPECIFIC INFO ***************/
 
-const char *device_name = "OB 999";
-const long ticLength = 2684;
-const int unit_number = 999;
+const char *device_name = "OB 104";
+const long ticLength = 2667;	//AUTO GENERATED
+const int unit_number = 104;
+
 
 /***********END DEVICE SPECIFIC INFO ***************/
 
 
-float CODE_VERSION = 1.07;
+float CODE_VERSION = 1.08;
 
 //START TestBed Section - Do not modify
 const bool testbed_readouts = 0;
